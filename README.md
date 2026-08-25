@@ -40,6 +40,12 @@ discover no JUnit suites. NeoForge GameTest fixtures are separate and require
 an explicitly provisioned game-test run; a successful compile is not evidence
 that every fixture has executed in a game.
 
+The isolated GameTest server has been executed from `run/gametest` with the
+recovered GTCEu tree and its pinned development dependencies. The current
+verification run completed all `160/160` required GameTests and shut down
+normally. This validates the server-side fixtures only; it does not replace a
+user-side ATM10 client or save migration test.
+
 ## Provenance and maintenance
 
 - [`SOURCE_PROVENANCE.md`](SOURCE_PROVENANCE.md) records the pinned upstream

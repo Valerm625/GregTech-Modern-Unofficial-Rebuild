@@ -38,14 +38,17 @@ record makes this fork an official GTCEu source release.
 Source assembly, `compileJava`, `compileTestJava`, `jar`, `sourcesJar`, and the
 ordinary Gradle `test` task have succeeded on the recovery tree. The ordinary
 test task discovers no JUnit suites. Focused NeoForge GameTest sources compile,
-but a fresh `runGameTestServer` execution is still required before behavior
-coverage can be claimed.
+and an isolated `runGameTestServer` execution completed with all `160/160`
+required GameTests passing. The run used the repository's `run/gametest`
+directory and shut down normally; it did not touch a user's ATM10 save or
+validate the full client.
 
 The compatibility work includes a concrete bridge for legacy and boosted
 `ChanceLogic` implementations and unambiguous four- and five-argument
 `chancedOutput` behavior. Focused transaction tests also cover recipe-index
-rollback after a failed reload. These tests are source-level regression
-fixtures, not proof of a complete in-game validation run.
+rollback after a failed reload. The isolated server run exercises these
+fixtures in-game; client-side rendering, modpack integration, and save
+migration remain outside this verification boundary.
 
 ## Public binary boundary
 

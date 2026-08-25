@@ -16,6 +16,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @PrefixGameTestTemplate(false)
@@ -42,20 +44,28 @@ public final class RecipeIndexTransactionGameTest {
                 .outputItems(Items.STONE, 1)
                 .build();
 
-        helper.assertTrue(db.add(incumbent, ingredients(Items.APPLE, Items.OAK_LOG)),
+        List<List<AbstractMapIngredient>> incumbentIngredients = recipeIngredients(Items.APPLE, Items.OAK_LOG);
+        helper.assertTrue(incumbentIngredients.size() == 2 &&
+                        incumbentIngredients.stream().allMatch(slot -> slot.size() == 1),
+                "The incumbent test path must contain two single-candidate slots: " + incumbentIngredients);
+        helper.assertTrue(db.add(incumbent, incumbentIngredients),
                 "The incumbent recipe should be indexed");
+        helper.assertTrue(db.find(lookupIngredients(Items.APPLE, Items.OAK_LOG), ignored -> true) == incumbent,
+                "The incumbent path should be visible with equivalent ingredient keys");
+        helper.assertFalse(db.add(candidate, recipeIngredients(Items.APPLE, Items.OAK_LOG)),
+                "A direct conflict with the incumbent must be rejected");
 
         // The first candidate (birch) creates a complete path. The second
         // candidate (apple) collides with the incumbent and must roll back the
         // path created for birch before returning failure.
         List<List<AbstractMapIngredient>> alternatives = List.of(
-                List.of(item(Items.BIRCH_LOG), item(Items.APPLE)),
-                List.of(item(Items.OAK_LOG)));
+                recipeSlot(Items.BIRCH_LOG, Items.APPLE),
+                recipeSlot(Items.OAK_LOG));
         helper.assertFalse(db.add(candidate, alternatives),
                 "A conflicting alternative set must be rejected");
-        helper.assertTrue(db.find(ingredients(Items.APPLE, Items.OAK_LOG), ignored -> true) == incumbent,
+        helper.assertTrue(db.find(lookupIngredients(Items.APPLE, Items.OAK_LOG), ignored -> true) == incumbent,
                 "The incumbent path was changed by a failed addition");
-        helper.assertTrue(db.find(ingredients(Items.BIRCH_LOG, Items.OAK_LOG), ignored -> true) == null,
+        helper.assertTrue(db.find(lookupIngredients(Items.BIRCH_LOG, Items.OAK_LOG), ignored -> true) == null,
                 "A failed addition left a candidate path in the lookup DB");
         helper.succeed();
     }
@@ -85,16 +95,16 @@ public final class RecipeIndexTransactionGameTest {
                 type.prepareStagingRecipes(type.getProxyRecipes());
         type.commitStagingRecipes(generation);
 
-        helper.assertTrue(type.db().find(ingredients(Items.GRAVEL), ignored -> true) == replacement,
+        helper.assertTrue(type.db().find(lookupIngredients(Items.GRAVEL), ignored -> true) == replacement,
                 "The replacement recipe was not published during staging commit");
-        helper.assertTrue(type.db().find(ingredients(Items.COBBLESTONE), ignored -> true) == null,
+        helper.assertTrue(type.db().find(lookupIngredients(Items.COBBLESTONE), ignored -> true) == null,
                 "The old recipe remained visible after staging commit");
 
         type.abortStagingRecipes();
 
-        helper.assertTrue(type.db().find(ingredients(Items.COBBLESTONE), ignored -> true) == oldRecipe,
+        helper.assertTrue(type.db().find(lookupIngredients(Items.COBBLESTONE), ignored -> true) == oldRecipe,
                 "Abort did not restore the previous lookup generation");
-        helper.assertTrue(type.db().find(ingredients(Items.GRAVEL), ignored -> true) == null,
+        helper.assertTrue(type.db().find(lookupIngredients(Items.GRAVEL), ignored -> true) == null,
                 "Abort left the replacement lookup generation visible");
         helper.assertTrue(type.getRecipesInCategory(oldRecipe.recipeCategory).contains(oldRecipe),
                 "Abort did not restore the previous category index");
@@ -106,8 +116,27 @@ public final class RecipeIndexTransactionGameTest {
         helper.succeed();
     }
 
-    private static List<List<AbstractMapIngredient>> ingredients(net.minecraft.world.item.Item... items) {
-        return List.of(java.util.Arrays.stream(items).map(RecipeIndexTransactionGameTest::item).toList());
+    private static List<List<AbstractMapIngredient>> recipeIngredients(net.minecraft.world.item.Item... items) {
+        List<List<AbstractMapIngredient>> ingredients = new ArrayList<>(items.length);
+        for (var input : items) {
+            ingredients.add(recipeSlot(input));
+        }
+        return ingredients;
+    }
+
+    private static List<AbstractMapIngredient> recipeSlot(net.minecraft.world.item.Item... items) {
+        // RecipeDB.add receives one candidate list per independent recipe input slot.
+        List<AbstractMapIngredient> slot = new ArrayList<>(items.length);
+        for (var input : items) {
+            slot.add(item(input));
+        }
+        MapIngredientPool.applyPooling(slot);
+        return slot;
+    }
+
+    private static List<List<AbstractMapIngredient>> lookupIngredients(net.minecraft.world.item.Item... items) {
+        // RecipeDB.find receives the available candidates for one input handler as one list.
+        return List.of(Arrays.stream(items).map(RecipeIndexTransactionGameTest::item).toList());
     }
 
     private static AbstractMapIngredient item(net.minecraft.world.item.Item item) {

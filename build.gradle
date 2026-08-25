@@ -130,6 +130,10 @@ jacoco {
     applyTo runGameTestServer
 }
 
+runGameTestServer.extensions.configure(org.gradle.testing.jacoco.plugins.JacocoTaskExtension) { extension ->
+    extension.includes = ['com.gregtechceu.gtceu.*']
+}
+
 jacocoTestReport {
     doFirst {
         try {

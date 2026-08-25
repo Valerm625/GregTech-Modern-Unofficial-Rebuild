@@ -6,7 +6,10 @@ import com.gregtechceu.gtceu.api.recipe.chance.boost.ChanceBoostFunction;
 import com.gregtechceu.gtceu.api.recipe.content.Content;
 import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
 import com.gregtechceu.gtceu.api.recipe.content.IContentSerializer;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
+import com.gregtechceu.gtceu.core.mixins.MappedRegistryAccessor;
 
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -83,8 +86,7 @@ public final class ChanceLogicCompatibilityGameTest {
                 .noneMatch(method -> method.getName().equals("roll") && method.getParameterCount() == 7),
                 "Legacy binary fixture unexpectedly declares the boosted roll method");
 
-        ChanceLogic fixture = fixtureClass.getConstructor(ResourceLocation.class)
-                .newInstance(GTCEu.id("legacy_chance_logic_binary_fixture"));
+        ChanceLogic fixture = instantiateFixture(fixtureClass, "legacy_chance_logic_binary_fixture");
         Content original = new Content("legacy-marker", 100, ChanceLogic.getMaxChancedValue(), 200);
         List<Content> rolled = fixture.roll(null, List.of(original),
                 (entry, recipeTier, chanceTier) -> 4321, 0, 0, null, 1);
@@ -113,8 +115,7 @@ public final class ChanceLogicCompatibilityGameTest {
         Class<? extends ChanceLogic> fixtureClass = new FixtureClassLoader()
                 .define(MISSING_ROLL_FIXTURE_BINARY_NAME,
                         createFixture(MISSING_ROLL_FIXTURE_BINARY_NAME, false));
-        ChanceLogic fixture = fixtureClass.getConstructor(ResourceLocation.class)
-                .newInstance(GTCEu.id("missing_roll_chance_logic_binary_fixture"));
+        ChanceLogic fixture = instantiateFixture(fixtureClass, "missing_roll_chance_logic_binary_fixture");
         Content entry = new Content("missing-roll-marker", 100, ChanceLogic.getMaxChancedValue(), 200);
 
         assertIllegalState(helper,
@@ -206,6 +207,19 @@ public final class ChanceLogicCompatibilityGameTest {
             failedSafely = true;
         }
         helper.assertTrue(failedSafely, failureMessage);
+    }
+
+    private static ChanceLogic instantiateFixture(Class<? extends ChanceLogic> fixtureClass, String id)
+            throws ReflectiveOperationException {
+        @SuppressWarnings("unchecked")
+        MappedRegistry<ChanceLogic> registry = (MappedRegistry<ChanceLogic>) GTRegistries.CHANCE_LOGICS;
+        boolean wasFrozen = ((MappedRegistryAccessor) (Object) registry).gtceu$isFrozen();
+        if (wasFrozen) registry.unfreeze();
+        try {
+            return fixtureClass.getConstructor(ResourceLocation.class).newInstance(GTCEu.id(id));
+        } finally {
+            if (wasFrozen) registry.freeze();
+        }
     }
 
     private static byte[] createFixture(String binaryName, boolean includeLegacyRoll) {

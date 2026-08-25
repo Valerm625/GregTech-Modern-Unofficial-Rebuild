@@ -1,0 +1,230 @@
+// CI may supply the already hash-pinned public EMI artifact as a temporary file.
+// Normal developer builds continue to resolve the byte-identical Modrinth Maven coordinate.
+def recoveredEmiOverride = providers.gradleProperty('recovered_emi_jar').map { configuredPath ->
+    file(configuredPath)
+}
+def recoveredEmiDependency = recoveredEmiOverride.isPresent() ?
+        files(recoveredEmiOverride.get()) : forge.emi
+
+// ModularUI publishes this release only as a mutable SNAPSHOT. CI mirrors the
+// audited timestamped files into a temporary Maven repository; ordinary local
+// builds resolve the same coordinate and fail verification if it has drifted.
+def recoveredMuiArtifact = configurations.detachedConfiguration(
+        dependencies.create('brachy.modularui:modularui-mc1.21.1:3.3.1-SNAPSHOT'))
+recoveredMuiArtifact.transitive = false
+def recoveredMuiSourcesArtifact = configurations.detachedConfiguration(
+        dependencies.create('brachy.modularui:modularui-mc1.21.1:3.3.1-SNAPSHOT:sources'))
+recoveredMuiSourcesArtifact.transitive = false
+
+dependencies {
+    compileOnly(libs.jetbrains.annotations)
+
+    testJarJar(testApi(libs.testframework.get()))
+
+    // Registrate
+    jarJar(api(forge.registrate.get()))
+
+    // Configuration
+    jarJar(api(forge.configuration.get()))
+
+    // Math Parser
+    compileOnly(libs.evalEx.get())
+
+    // MUI
+    jarJar(implementation(forge.mui.get()))
+
+    // Recipe Viewers
+    compileOnly(forge.bundles.jei)
+    compileOnly(recoveredEmiDependency)
+    compileOnly(forge.jeict)
+
+    // WAILA-likes
+    compileOnly(forge.jade)
+
+    // Curios
+    compileOnly(variantOf(forge.curios) { classifier("api") })
+
+    // AE2
+    compileOnly(forge.ae2)
+
+    // Create
+    compileOnly(forge.ponder)
+    compileOnly(variantOf(forge.create) { classifier("slim") })
+    compileOnly(forge.flywheel.api)
+
+    // Sable (Create Aeronautics physics sub-levels)
+    compileOnly(forge.sable)
+
+    // KJS
+    compileOnly(forge.bundles.kjs)
+
+    // Performance
+    compileOnly(forge.sodium.impl) // we have to depend on the entirety of sodium to mixin into it.
+    compileOnly(forge.sodium.api) // also add api so we get sources :)
+    compileOnly(forge.fabricApi.rendering) // IDK why the version sodium JiJ's doesn't work.
+    compileOnly(forge.iris)
+    compileOnly(forge.embeddium)
+    compileOnly(forge.modernfix)
+
+    // Teams
+    compileOnly(forge.ftblibrary)
+    compileOnly(forge.ftbteams)
+    compileOnly(forge.ftbquests)
+    compileOnly(forge.resourcefullib)
+    compileOnly(forge.argonauts)
+    compileOnly(forge.heracles)
+
+    // Maps
+    compileOnly(forge.ftbchunks)
+    compileOnly(forge.xaeroslib)
+    compileOnly(forge.xaerosminimap)
+    compileOnly(forge.xaerosworldmap)
+    compileOnly(forge.journeymap.api)
+    compileOnly(forge.journeymap.forge)
+
+    compileOnly(forge.curios)
+    localRuntime(forge.curios)
+
+    // GameStages
+    // compileOnly(forge.gamestages)
+
+    // CC: Tweaked
+    compileOnly(forge.cc.tweaked.core.api)
+    compileOnly(forge.cc.tweaked.forge.api)
+
+    // Standard runtime mods //
+    localRuntime(libs.testframework)
+
+    localRuntime(forge.jade)
+    localRuntime(forge.ae2)
+    localRuntime(forge.spark)
+    localRuntime(forge.modernfix)
+
+    // Runtime Recipe Viewers - uncomment whichever one you want to use //
+    localRuntime(recoveredEmiDependency)
+//    localRuntime(forge.jei.neoforge.impl)
+//    localRuntime(forge.bundles.rei.runtime)
+
+    // Client-only runtime mods //
+    clientLocalRuntime(forge.sodium.impl)
+    sodiumShellSource(forge.sodium.full)
+    clientLocalRuntime(files(tasks.named('stripSodiumShellLib')))
+
+    clientLocalRuntime(forge.fabricApi.base)
+    clientLocalRuntime(forge.fabricApi.rendering)
+    clientLocalRuntime(forge.fabricApi.renderingData)
+    clientLocalRuntime(forge.fabricApi.blockView)
+    clientLocalRuntime(forge.iris)
+    renderNurseCfg(libs.renderNurse)
+
+    //////////////////////////////////////////////////////
+    // Runtime mods for dev testing with unclean client //
+    //////////////////////////////////////////////////////
+    extraLocalRuntime(forge.javd)
+    extraLocalRuntime(forge.trenzalore)
+    extraLocalRuntime(forge.curios)
+//    extraLocalRuntime(forge.worldstripper)
+    localRuntime(forge.cc.tweaked.forge.impl)
+
+    extraLocalRuntime(forge.create) {
+        // Needed to prevent game-test crashes
+        exclude group: "maven.modrinth", module: "journeymap"
+        exclude group: "info.journeymap", module: "journeymap-api-neoforge"
+    }
+
+    // Create Aeronautics suite (Sable physics sub-levels) for dev-testing the compat, enabled if needed
+
+//    extraLocalRuntime(forge.sable)
+//    extraLocalRuntime(forge.sableRapier)
+//    extraLocalRuntime(forge.sableCompanion)
+//    extraLocalRuntime(forge.veil)
+//    extraLocalRuntime(forge.aeronautics) { transitive = false }
+//    extraLocalRuntime(forge.simulated) { transitive = false }
+//    extraLocalRuntime(forge.offroad) { transitive = false }
+
+    extraLocalRuntime(forge.bundles.kjs)
+
+    extraLocalRuntime(forge.ftblibrary)
+    extraLocalRuntime(forge.ftbteams)
+    extraLocalRuntime(forge.ftbquests)
+
+//    extraLocalRuntime(forge.heracles)
+    extraLocalRuntime(forge.resourcefullib)
+
+//    extraLocalRuntime(forge.xaerosminimap)
+//    extraLocalRuntime(forge.xaerosworldmap)
+//    extraLocalRuntime(forge.journeymap.forge)
+//    extraLocalRuntime(forge.ftbchunks)
+
+//    extraLocalRuntime(forge.gamestages)
+    extraLocalRuntime(forge.bookshelf) {
+        transitive = false
+    }
+
+    extraLocalRuntime(forge.kotlinforforge) {
+        transitive = false
+    }
+    extraLocalRuntime(forge.observable)
+    //////////////////////////
+
+}
+
+// The original dev.emi artifact redirects through an unreliable legacy host.
+// Modrinth publishes the byte-identical NeoForge JAR; verify that identity
+// before compiling so the mirror substitution cannot silently drift.
+def recoveredEmiArtifact = configurations.detachedConfiguration(
+        dependencies.create('maven.modrinth:emi:1.1.24+1.21.1+neoforge'))
+recoveredEmiArtifact.transitive = false
+def verifyRecoveredEmiArtifact = tasks.register('verifyRecoveredEmiArtifact') {
+    group = 'verification'
+    description = 'Verify the pinned byte identity of the recovered EMI compile dependency.'
+    doLast {
+        def artifactFile = recoveredEmiOverride.isPresent() ?
+                recoveredEmiOverride.get() : recoveredEmiArtifact.singleFile
+        if (!artifactFile.isFile()) {
+            throw new GradleException('Recovered EMI artifact is missing: ' + artifactFile)
+        }
+        def actualSize = artifactFile.length()
+        def actualSha256 = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(artifactFile.bytes).encodeHex().toString()
+        if (actualSize != 1111538L || actualSha256 != 'b68691f94f0727fc517cac2ab55bd6658d1179cc8cc715fe610b60c37469bc4c') {
+            throw new GradleException('Recovered EMI artifact mismatch: ' + artifactFile +
+                    ' expected size=1111538 sha256=b68691f94f0727fc517cac2ab55bd6658d1179cc8cc715fe610b60c37469bc4c' +
+                    ' actual size=' + actualSize + ' sha256=' + actualSha256)
+        }
+        logger.lifecycle('Recovered EMI artifact verified: size=' + actualSize +
+                ' sha256=' + actualSha256)
+    }
+}
+tasks.named('compileJava').configure { dependsOn(verifyRecoveredEmiArtifact) }
+
+def verifyRecoveredMuiArtifacts = tasks.register('verifyRecoveredMuiArtifacts') {
+    group = 'verification'
+    description = 'Verify the pinned ModularUI binary and corresponding-source artifacts.'
+    doLast {
+        def binary = recoveredMuiArtifact.singleFile
+        def sources = recoveredMuiSourcesArtifact.singleFile
+        def sha256 = { artifactFile ->
+            java.security.MessageDigest.getInstance('SHA-256')
+                    .digest(artifactFile.bytes).encodeHex().toString()
+        }
+        def binarySha256 = sha256(binary)
+        def sourcesSha256 = sha256(sources)
+        if (binary.length() != 1761336L ||
+                binarySha256 != '0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1') {
+            throw new GradleException('ModularUI binary mismatch: ' + binary +
+                    ' expected size=1761336 sha256=0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1' +
+                    ' actual size=' + binary.length() + ' sha256=' + binarySha256)
+        }
+        if (sources.length() != 806832L ||
+                sourcesSha256 != '6bad38c38437d20a43051e81747bf477b8faec1299b8388fdd68821896fd97fa') {
+            throw new GradleException('ModularUI sources mismatch: ' + sources +
+                    ' expected size=806832 sha256=6bad38c38437d20a43051e81747bf477b8faec1299b8388fdd68821896fd97fa' +
+                    ' actual size=' + sources.length() + ' sha256=' + sourcesSha256)
+        }
+        logger.lifecycle('ModularUI artifacts verified: binary size=' + binary.length() +
+                ' sha256=' + binarySha256 + ', sources size=' + sources.length() +
+                ' sha256=' + sourcesSha256)
+    }
+}
+tasks.named('compileJava').configure { dependsOn(verifyRecoveredMuiArtifacts) }

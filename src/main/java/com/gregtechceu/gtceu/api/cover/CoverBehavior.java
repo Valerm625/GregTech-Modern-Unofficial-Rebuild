@@ -1,0 +1,227 @@
+package com.gregtechceu.gtceu.api.cover;
+
+import com.gregtechceu.gtceu.api.blockentity.ICopyable;
+import com.gregtechceu.gtceu.api.capability.ICoverable;
+import com.gregtechceu.gtceu.api.item.tool.GTToolType;
+import com.gregtechceu.gtceu.api.item.tool.IToolGridHighlight;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.mui.factory.CoverUIFactory;
+import com.gregtechceu.gtceu.api.sync_system.SyncDataHolder;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SyncToClient;
+import com.gregtechceu.gtceu.api.sync_system.managed.ISyncManaged;
+import com.gregtechceu.gtceu.api.transfer.fluid.IFluidHandlerModifiable;
+import com.gregtechceu.gtceu.client.renderer.cover.ICoverRenderer;
+import com.gregtechceu.gtceu.client.renderer.cover.IDynamicCoverRenderer;
+import com.gregtechceu.gtceu.common.mui.GTGuiTextures;
+import com.gregtechceu.gtceu.utils.ExtendedUseOnContext;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
+
+import brachy.modularui.drawable.UITexture;
+import com.mojang.datafixers.util.Pair;
+import lombok.Getter;
+import org.jetbrains.annotations.MustBeInvokedByOverriders;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
+
+/**
+ * Represents a cover instance attached on a specific side of a machine
+ */
+public abstract class CoverBehavior implements ISyncManaged, IToolGridHighlight, ICopyable {
+
+    @Getter
+    protected final SyncDataHolder syncDataHolder = new SyncDataHolder(this);
+
+    public final CoverDefinition coverDefinition;
+    public final ICoverable coverHolder;
+    public final Direction attachedSide;
+    @Getter
+    @SaveField
+    @SyncToClient
+    protected ItemStack attachItem = ItemStack.EMPTY;
+    @Getter
+    @SaveField
+    protected int redstoneSignalOutput = 0;
+
+    public CoverBehavior(CoverDefinition definition, ICoverable coverHolder, Direction attachedSide) {
+        this.coverDefinition = definition;
+        this.coverHolder = coverHolder;
+        this.attachedSide = attachedSide;
+    }
+
+    @Override
+    public @Nullable ISyncManaged getParentSyncObject() {
+        return coverHolder;
+    }
+
+    /**
+     * Called on server side to check whether cover can be attached to given cover holder.
+     * it will be called before {@link CoverBehavior#onAttached(ItemStack, ServerPlayer)}
+     *
+     * @return true if cover can be attached, false otherwise
+     */
+    @MustBeInvokedByOverriders
+    public boolean canAttach() {
+        var machine = MetaMachine.getMachine(coverHolder.getLevel(), coverHolder.getBlockPos());
+        return machine == null ||
+                (machine.getDefinition().isAllowCoverOnFront() || !machine.hasFrontFacing() ||
+                        coverHolder.getFrontFacing() != attachedSide);
+    }
+
+    /**
+     * Will be called on server side after the cover attachment to the machine
+     * Cover can change it's internal state here and return initial data as nbt.
+     *
+     * @param itemStack the item cover was attached from
+     */
+    public void onAttached(ItemStack itemStack, @Nullable ServerPlayer player) {
+        attachItem = itemStack.copy();
+        attachItem.setCount(1);
+        syncDataHolder.markClientSyncFieldDirty("attachItem");
+        markAsChanged();
+    }
+
+    public void onLoad() {}
+
+    public void onUnload() {}
+
+    //////////////////////////////////////
+    // ********** Misc ***********//
+    //////////////////////////////////////
+    public ItemStack getPickItem() {
+        return attachItem;
+    }
+
+    /**
+     * Append additional drops. It doesn't include itself.
+     */
+    public List<ItemStack> getAdditionalDrops() {
+        return new ArrayList<>();
+    }
+
+    /**
+     * Called prior to cover removing on the server side
+     * Will also be called during machine dismantling, as machine loses installed covers after that
+     */
+    public void onRemoved() {}
+
+    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {}
+
+    public void setRedstoneSignalOutput(int redstoneSignalOutput) {
+        if (this.redstoneSignalOutput == redstoneSignalOutput) return;
+        this.redstoneSignalOutput = redstoneSignalOutput;
+        coverHolder.notifyBlockUpdate();
+    }
+
+    public boolean canConnectRedstone() {
+        return false;
+    }
+
+    //////////////////////////////////////
+    // ******* Interaction *******//
+    //////////////////////////////////////
+
+    public final Pair<@Nullable GTToolType, InteractionResult> onToolClick(ExtendedUseOnContext context) {
+        var toolType = context.getToolType();
+        if (toolType.isEmpty() && context.getPlayer().isShiftKeyDown()) {
+            return Pair.of(null, onScrewdriverClick(context));
+        }
+        if (toolType.contains(GTToolType.SCREWDRIVER)) {
+            return Pair.of(GTToolType.SCREWDRIVER, onScrewdriverClick(context));
+        } else if (toolType.contains(GTToolType.SOFT_MALLET)) {
+            return Pair.of(GTToolType.SOFT_MALLET, onSoftMalletClick(context));
+        }
+        return Pair.of(null, InteractionResult.PASS);
+    }
+
+    public InteractionResult onScrewdriverClick(ExtendedUseOnContext context) {
+        if (this instanceof IMuiCover muiCover) {
+            if (context.getPlayer() instanceof ServerPlayer serverPlayer) {
+                CoverUIFactory.INSTANCE.open(serverPlayer, muiCover);
+            }
+            return InteractionResult.sidedSuccess(coverHolder.isRemote());
+        }
+        return InteractionResult.PASS;
+    }
+
+    public InteractionResult onSoftMalletClick(ExtendedUseOnContext context) {
+        return InteractionResult.PASS;
+    }
+
+    //////////////////////////////////////
+    // ******* Rendering ********//
+    //////////////////////////////////////
+
+    /**
+     * @return If the pipe this is placed on and a pipe on the other side should be able to connect
+     */
+    public boolean canPipePassThrough() {
+        return true;
+    }
+
+    public boolean shouldRenderPlate() {
+        return true;
+    }
+
+    public @Nullable Supplier<ICoverRenderer> getCoverRenderer() {
+        return coverDefinition.getCoverRenderer();
+    }
+
+    @Override
+    public boolean shouldRenderGrid(Player player, BlockPos pos, BlockState state, ItemStack held,
+                                    Set<GTToolType> toolTypes) {
+        return toolTypes.contains(GTToolType.CROWBAR) ||
+                ((toolTypes.isEmpty() || toolTypes.contains(GTToolType.SCREWDRIVER)) && this instanceof IMuiCover);
+    }
+
+    @Override
+    public @Nullable UITexture sideTips(Player player, BlockPos pos, BlockState state, Set<GTToolType> toolTypes,
+                                        ItemStack held, Direction side) {
+        if (toolTypes.contains(GTToolType.CROWBAR)) {
+            return GTGuiTextures.TOOL_REMOVE_COVER;
+        }
+        if ((toolTypes.isEmpty() || toolTypes.contains(GTToolType.SCREWDRIVER)) && this instanceof IMuiCover) {
+            return GTGuiTextures.TOOL_COVER_SETTINGS;
+        }
+        return null;
+    }
+
+    /**
+     * get Appearance. same as IBlockExtension.getAppearance() / IFabricBlock.getAppearance()
+     */
+    @Nullable
+    public BlockState getAppearance(@Nullable BlockState sourceState, @Nullable BlockPos sourcePos) {
+        return null;
+    }
+
+    public Supplier<@Nullable IDynamicCoverRenderer> getDynamicRenderer() {
+        return () -> null;
+    }
+
+    //////////////////////////////////////
+    // ******* Capabilities *******//
+    //////////////////////////////////////
+
+    @Nullable
+    public IItemHandlerModifiable getItemHandlerCap(IItemHandlerModifiable defaultValue) {
+        return defaultValue;
+    }
+
+    @Nullable
+    public IFluidHandlerModifiable getFluidHandlerCap(IFluidHandlerModifiable defaultValue) {
+        return defaultValue;
+    }
+}

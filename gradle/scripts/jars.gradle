@@ -1,0 +1,51 @@
+tasks.register('slimJar', Jar) {
+    dependsOn("classes")
+    archiveClassifier = "slim"
+    from sourceSets.main.output
+}
+
+// Add sources jar to components.java
+java {
+    withSourcesJar()
+}
+
+// Use delombok'd files for sources
+sourcesJar {
+    exclude {
+        sourceSets.main.allSource.contains it.file
+    }
+    from delombok
+}
+
+
+// Hash-planned by the source assembler; this directory is deliberately
+// outside sourceSets.main so the delombok exclusion above cannot hide it.
+sourcesJar {
+    from("$rootDir/license_bundle")
+}
+
+base {
+    archivesName = "${project.name}-${libs.versions.minecraft.get()}"
+}
+
+afterEvaluate {
+    tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+        destinationDirectory = file('build/libs/')
+        manifest.attributes([
+                'MixinConfigs': 'gtceu.mixins.json',
+                'Specification-Title': mod_name,
+                'Specification-Version': mod_version,
+                'Specification-Vendor': 'ATM10 Maintenance Fork contributors',
+                'Implementation-Title': base.archivesName,
+                'Implementation-Version': version,
+                'Implementation-Vendor': 'ATM10 Maintenance Fork contributors',
+                'Fork-Status': 'Unofficial',
+                'Fork-Revision': fork_revision,
+                'Fork-Dirty': fork_dirty,
+                'Upstream-Project': 'https://github.com/GregTechCEu/GregTech-Modern/',
+                'Upstream-Revision': upstream_revision,
+                'Upstream-Vendor': 'GregTechCEu Team',
+                'AI-Assisted': 'OpenAI Codex; human review required before release',
+        ])
+    }
+}

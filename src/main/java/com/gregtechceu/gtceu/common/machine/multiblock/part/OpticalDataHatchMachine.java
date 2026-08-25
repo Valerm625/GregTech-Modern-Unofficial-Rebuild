@@ -1,0 +1,97 @@
+package com.gregtechceu.gtceu.common.machine.multiblock.part;
+
+import com.gregtechceu.gtceu.api.blockentity.BlockEntityCreationInfo;
+import com.gregtechceu.gtceu.api.capability.GTCapability;
+import com.gregtechceu.gtceu.api.capability.IDataAccessHatch;
+import com.gregtechceu.gtceu.api.capability.IOpticalDataAccessHatch;
+import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.part.MultiblockPartMachine;
+import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+
+import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.world.level.block.Block;
+
+import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
+public class OpticalDataHatchMachine extends MultiblockPartMachine implements IOpticalDataAccessHatch {
+
+    @Getter
+    private final boolean isTransmitter;
+
+    public OpticalDataHatchMachine(BlockEntityCreationInfo info, boolean isTransmitter) {
+        super(info);
+        this.isTransmitter = isTransmitter;
+    }
+
+    @Override
+    public boolean isRecipeAvailable(GTRecipe recipe, Collection<IDataAccessHatch> seen) {
+        seen.add(this);
+        if (!isFormed()) {
+            return false;
+        }
+
+        if (isTransmitter()) {
+            MultiblockControllerMachine controller = getControllers().first();
+            if (!(controller instanceof WorkableMultiblockMachine workable) || !workable.getRecipeLogic().isWorking())
+                return false;
+
+            List<IDataAccessHatch> dataAccesses = new ArrayList<>();
+            List<IDataAccessHatch> transmitters = new ArrayList<>();
+            for (var part : controller.getParts()) {
+                Block block = part.getBlockState().getBlock();
+                if (part instanceof IDataAccessHatch hatch && PartAbility.DATA_ACCESS.isApplicable(block)) {
+                    dataAccesses.add(hatch);
+                }
+                if (part instanceof IDataAccessHatch hatch &&
+                        PartAbility.OPTICAL_DATA_RECEPTION.isApplicable(block)) {
+                    transmitters.add(hatch);
+                }
+            }
+
+            return isRecipeAvailable(dataAccesses, seen, recipe) ||
+                    isRecipeAvailable(transmitters, seen, recipe);
+        } else {
+            IDataAccessHatch cap = getLevel().getCapability(GTCapability.CAPABILITY_DATA_ACCESS,
+                    getBlockPos().relative(getFrontFacing()), getFrontFacing().getOpposite());
+            return cap != null && cap.isRecipeAvailable(recipe, seen);
+        }
+    }
+
+    private static boolean isRecipeAvailable(@NotNull Iterable<? extends IDataAccessHatch> hatches,
+                                             @NotNull Collection<IDataAccessHatch> seen,
+                                             @NotNull GTRecipe recipe) {
+        for (IDataAccessHatch hatch : hatches) {
+            if (seen.contains(hatch)) continue;
+            if (hatch.isRecipeAvailable(recipe, seen)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isCreative() {
+        return false;
+    }
+
+    @Override
+    public boolean canShared(MultiblockControllerMachine controller, String substructureName) {
+        return false;
+    }
+
+    @Override
+    public GTRecipe modifyRecipe(GTRecipe recipe) {
+        return IOpticalDataAccessHatch.super.modifyRecipe(recipe);
+    }
+}

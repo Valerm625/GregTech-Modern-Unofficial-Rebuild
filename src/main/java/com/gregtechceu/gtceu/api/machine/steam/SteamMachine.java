@@ -1,0 +1,45 @@
+package com.gregtechceu.gtceu.api.machine.steam;
+
+import com.gregtechceu.gtceu.api.blockentity.BlockEntityCreationInfo;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
+import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableFluidTank;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
+import com.gregtechceu.gtceu.common.data.GTMaterials;
+
+import net.neoforged.neoforge.fluids.FluidType;
+
+import lombok.Getter;
+
+/**
+ * A singleblock machine with a steam tank.
+ */
+public abstract class SteamMachine extends MetaMachine implements ITieredMachine {
+
+    @Getter
+    public final boolean isHighPressure;
+    @SaveField
+    public final NotifiableFluidTank steamTank;
+
+    public SteamMachine(BlockEntityCreationInfo info, boolean isHighPressure,
+                        NotifiableFluidTank steamTank) {
+        super(info);
+        this.isHighPressure = isHighPressure;
+        this.steamTank = attachTrait(steamTank);
+        this.steamTank.setFilter(f -> f.getFluid().is(GTMaterials.Steam.getFluidTag()));
+    }
+
+    public SteamMachine(BlockEntityCreationInfo info, boolean isHighPressure) {
+        this(info, isHighPressure, new NotifiableFluidTank(1, 16 * FluidType.BUCKET_VOLUME, IO.IN));
+    }
+
+    //////////////////////////////////////
+    // ***** Initialization *****//
+    //////////////////////////////////////
+
+    @Override
+    public int getTier() {
+        return isHighPressure ? 1 : 0;
+    }
+}

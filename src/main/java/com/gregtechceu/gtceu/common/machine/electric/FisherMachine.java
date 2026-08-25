@@ -1,0 +1,306 @@
+package com.gregtechceu.gtceu.common.machine.electric;
+
+import com.gregtechceu.gtceu.api.GTValues;
+import com.gregtechceu.gtceu.api.blockentity.BlockEntityCreationInfo;
+import com.gregtechceu.gtceu.api.capability.IWorkable;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.machine.TickableSubscription;
+import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
+import com.gregtechceu.gtceu.api.machine.feature.IMuiMachine;
+import com.gregtechceu.gtceu.api.machine.mui.MachineUIPanelBuilder;
+import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SyncToClient;
+import com.gregtechceu.gtceu.common.machine.trait.AutoOutputTrait;
+import com.gregtechceu.gtceu.common.machine.trait.BatterySlotTrait;
+import com.gregtechceu.gtceu.common.mui.GTGuiTextures;
+import com.gregtechceu.gtceu.common.mui.GTMuiMachineUtil;
+import com.gregtechceu.gtceu.common.mui.GTMuiWidgets;
+import com.gregtechceu.gtceu.data.lang.LangHandler;
+import com.gregtechceu.gtceu.utils.ISubscription;
+
+import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.projectile.FishingHook;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
+
+import brachy.modularui.drawable.ItemDrawable;
+import brachy.modularui.drawable.progress.ProgressDrawable;
+import brachy.modularui.factory.PosGuiData;
+import brachy.modularui.screen.UISettings;
+import brachy.modularui.value.BoolValue;
+import brachy.modularui.value.sync.DoubleSyncValue;
+import brachy.modularui.value.sync.PanelSyncManager;
+import brachy.modularui.widget.ParentWidget;
+import brachy.modularui.widgets.ProgressWidget;
+import brachy.modularui.widgets.ToggleButton;
+import brachy.modularui.widgets.layout.Flow;
+import brachy.modularui.widgets.slot.ItemSlot;
+import brachy.modularui.widgets.slot.ModularSlot;
+import lombok.Getter;
+import lombok.Setter;
+import org.jetbrains.annotations.Nullable;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
+public class FisherMachine extends TieredEnergyMachine
+                           implements IMuiMachine, IWorkable {
+
+    @SaveField
+    protected final NotifiableItemStackHandler cache;
+    @Getter
+    @Setter
+    @SaveField
+    protected boolean allowInputFromOutputSideItems;
+    @SaveField
+    protected final NotifiableItemStackHandler baitHandler;
+    @Nullable
+    protected TickableSubscription batterySubs, fishingSubs;
+    @Nullable
+    protected ISubscription energySubs, baitSubs;
+    private final long energyPerTick;
+
+    private final int inventorySize;
+
+    @Getter
+    public final int maxProgress;
+
+    @Getter
+    @SaveField
+    private int progress = 0;
+
+    @Getter
+    @SaveField
+    @SyncToClient
+    private boolean isWorkingEnabled = true;
+
+    @Getter
+    @SaveField
+    private boolean active = false;
+    public static final int WATER_CHECK_SIZE = 5;
+    private static final ItemStack fishingRod = new ItemStack(Items.FISHING_ROD);
+    private boolean hasWater = false;
+
+    @Getter
+    @SaveField
+    @SyncToClient
+    protected boolean junkEnabled = true;
+    @SaveField
+    @SyncToClient
+    public final AutoOutputTrait autoOutput;
+
+    public FisherMachine(BlockEntityCreationInfo info, int tier) {
+        super(info, tier, false);
+        this.inventorySize = (tier + 1) * (tier + 1);
+        this.maxProgress = calcMaxProgress(tier);
+        this.energyPerTick = GTValues.V[tier - 1];
+        this.cache = attachTrait(new NotifiableItemStackHandler(inventorySize, IO.BOTH, IO.OUT));
+
+        this.baitHandler = attachTrait(new NotifiableItemStackHandler(1, IO.IN, IO.BOTH));
+        baitHandler.setFilter(item -> item.is(Items.STRING));
+
+        autoOutput = attachTrait(AutoOutputTrait.ofItems(cache));
+        environmentalExplosionTrait.setEnableEnvironmentalExplosions(false);
+
+        attachPersistentTrait("batterySlot", new BatterySlotTrait(energyContainer));
+    }
+
+    public void setWorkingEnabled(boolean enabled) {
+        isWorkingEnabled = enabled;
+        syncDataHolder.markClientSyncFieldDirty("isWorkingEnabled");
+    }
+
+    public void setJunkEnabled(boolean enabled) {
+        junkEnabled = enabled;
+        syncDataHolder.markClientSyncFieldDirty("junkEnabled");
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (isRemote()) return;
+        energySubs = energyContainer.addChangedListener(this::updateFishingUpdateSubscription);
+        baitSubs = baitHandler.addChangedListener(this::updateFishingUpdateSubscription);
+        this.updateFishingUpdateSubscription();
+    }
+
+    @Override
+    public void onUnload() {
+        super.onUnload();
+        if (energySubs != null) {
+            energySubs.unsubscribe();
+            energySubs = null;
+        }
+        if (baitSubs != null) {
+            baitSubs.unsubscribe();
+            baitSubs = null;
+        }
+    }
+
+    public static int calcMaxProgress(int tier) {
+        return (int) (800.0 - 170 * ((double) tier - 1.0) + (((double) Math.max(0, tier - 4) / 0.012)));
+    }
+
+    //////////////////////////////////////
+    // ********* Logic **********//
+    //////////////////////////////////////
+
+    public void updateFishingUpdateSubscription() {
+        if (drainEnergy(true) && this.baitHandler.getStackInSlot(0).is(Items.STRING) && isWorkingEnabled) {
+            fishingSubs = subscribeServerTick(fishingSubs, this::fishingUpdate);
+            active = true;
+            return;
+        } else if (fishingSubs != null) {
+            fishingSubs.unsubscribe();
+            fishingSubs = null;
+            active = false;
+        }
+        progress = 0;
+    }
+
+    private void updateHasWater() {
+        for (int x = 0; x < WATER_CHECK_SIZE; x++)
+            for (int z = 0; z < WATER_CHECK_SIZE; z++) {
+                BlockPos waterCheckPos = getBlockPos().below().offset(x - WATER_CHECK_SIZE / 2, 0,
+                        z - WATER_CHECK_SIZE / 2);
+                if (!getLevel().getBlockState(waterCheckPos).getFluidState().is(Fluids.WATER)) {
+                    hasWater = false;
+                    return;
+                }
+            }
+        hasWater = true;
+    }
+
+    public void fishingUpdate() {
+        if (this.getOffsetTimer() % maxProgress == 0L)
+            updateHasWater();
+
+        if (!hasWater) return;
+
+        drainEnergy(false);
+        if (progress >= maxProgress) {
+            var lootTableRegistry = getLevel().registryAccess().registryOrThrow(Registries.LOOT_TABLE);
+            LootTable lootTable = lootTableRegistry.get(BuiltInLootTables.FISHING);
+            if (!this.junkEnabled) {
+                lootTable = lootTableRegistry.get(BuiltInLootTables.FISHING_FISH);
+            }
+
+            FishingHook simulatedHook = new FishingHook(EntityType.FISHING_BOBBER, getLevel()) {
+
+                public boolean isOpenWaterFishing() {
+                    return true;
+                }
+            };
+
+            LootParams lootContext = new LootParams.Builder((ServerLevel) getLevel())
+                    .withOptionalParameter(LootContextParams.THIS_ENTITY, simulatedHook)
+                    .withParameter(LootContextParams.TOOL, fishingRod)
+                    .withParameter(LootContextParams.ORIGIN,
+                            new Vec3(getBlockPos().getX(), getBlockPos().getY(), getBlockPos().getZ()))
+                    .create(LootContextParamSets.FISHING);
+
+            NonNullList<ItemStack> generatedLoot = NonNullList.create();
+            generatedLoot.addAll(lootTable.getRandomItems(lootContext));
+
+            boolean useBait = false;
+            for (ItemStack itemStack : generatedLoot)
+                useBait |= tryFillCache(itemStack);
+
+            if (useBait && junkEnabled)
+                this.baitHandler.storage.extractItem(0, 1, false);
+            else if (useBait)
+                this.baitHandler.storage.extractItem(0, 2, false);
+            updateFishingUpdateSubscription();
+            progress = -1;
+        }
+        progress++;
+    }
+
+    private boolean tryFillCache(ItemStack stack) {
+        for (int i = 0; i < cache.getSlots(); i++) {
+            if (cache.insertItemInternal(i, stack, false).getCount() < stack.getCount()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean drainEnergy(boolean simulate) {
+        long resultEnergy = energyContainer.getEnergyStored() - energyPerTick;
+        if (resultEnergy >= 0L && resultEnergy <= energyContainer.getEnergyCapacity()) {
+            if (!simulate)
+                energyContainer.removeEnergy(energyPerTick);
+            return true;
+        }
+        return false;
+    }
+
+    //////////////////////////////////////
+    // ********** GUI ***********//
+    //////////////////////////////////////
+
+    @Override
+    public MachineUIPanelBuilder getPanelBuilder(PosGuiData data, PanelSyncManager syncManager, UISettings settings) {
+        return MachineUIPanelBuilder.panelBuilder(this)
+                .rightConfigurators(configuratorFlow -> configuratorFlow
+                        .child(new ToggleButton()
+                                .value(new BoolValue.Dynamic(this::isJunkEnabled, this::setJunkEnabled))
+                                .overlay(new ItemDrawable(Items.NAME_TAG))
+                                .tooltipAutoUpdate(true)
+                                .tooltipDynamic((r) -> {
+                                    var lines = LangHandler.getMultiLang("gtceu.gui.fisher_mode.tooltip",
+                                            GTValues.VNF[getTier()], GTValues.VNF[getTier()]);
+                                    for (var line : lines) {
+                                        r.addLine(line);
+                                    }
+                                })));
+    }
+
+    @Override
+    public void buildMainUI(ParentWidget<?> mainWidget, PosGuiData guiData, PanelSyncManager syncManager,
+                            UISettings settings) {
+        var outputItemGrid = GTMuiWidgets.createGrid(cache.getSize(), (int) Math.sqrt(cache.getSize()), true, 'i');
+
+        DoubleSyncValue progressPercent = syncManager.getOrCreateSyncHandler("progressPercent", DoubleSyncValue.class,
+                () -> new DoubleSyncValue(() -> progress / (double) maxProgress));
+
+        mainWidget
+                .name("content")
+                .coverChildrenWidth()
+                .coverChildrenHeight(54)
+                .child(Flow.row()
+                        .name("mainRow")
+                        .center()
+                        .coverChildren()
+                        .margin(2, 3)
+                        .childPadding(4)
+                        .child(new ItemSlot()
+                                .slot(new ModularSlot(baitHandler.storage, 0).singletonSlotGroup(0).accessibility(true,
+                                        true))
+                                .background(GTGuiTextures.SLOT, GTGuiTextures.STRING_SLOT_OVERLAY))
+                        .child(new ProgressWidget()
+                                .texture(GTGuiTextures.PROGRESS_ARROW.main(), ProgressDrawable.Direction.RIGHT)
+                                .value(progressPercent))
+                        .child(GTMuiMachineUtil.createSlotGroupFromInventory(cache.storage,
+                                "output_item_inv", cache.getSize(), 'i', slot -> {
+                                    slot.getSlot().accessibility(false, true);
+                                    return slot;
+                                },
+                                syncManager, outputItemGrid))
+                        .padding(4, 0));
+    }
+}

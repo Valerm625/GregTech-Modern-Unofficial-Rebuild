@@ -1,0 +1,98 @@
+package com.gregtechceu.gtceu.common.machine.multiblock.electric;
+
+import com.gregtechceu.gtceu.GTCEu;
+import com.gregtechceu.gtceu.api.GTValues;
+import com.gregtechceu.gtceu.api.blockentity.BlockEntityCreationInfo;
+import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
+import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.data.chemical.material.Material;
+import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
+import com.gregtechceu.gtceu.common.data.GTBlocks;
+import com.gregtechceu.gtceu.common.data.GTMaterials;
+import com.gregtechceu.gtceu.common.machine.trait.BedrockOreMinerLogic;
+import com.gregtechceu.gtceu.utils.GTUtil;
+
+import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
+
+import lombok.Getter;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
+public class BedrockOreMinerMachine extends WorkableElectricMultiblockMachine implements ITieredMachine {
+
+    @Getter
+    private final int tier;
+
+    public BedrockOreMinerMachine(BlockEntityCreationInfo info, int tier) {
+        super(info, new BedrockOreMinerLogic());
+        this.tier = tier;
+    }
+
+    @Override
+    public BedrockOreMinerLogic getRecipeLogic() {
+        return (BedrockOreMinerLogic) super.getRecipeLogic();
+    }
+
+    public int getEnergyTier() {
+        var energyContainer = this.getCapabilitiesFlat(IO.IN, EURecipeCapability.CAP);
+        var energyCont = new EnergyContainerList(energyContainer.stream().filter(IEnergyContainer.class::isInstance)
+                .map(IEnergyContainer.class::cast).toList());
+        return Math.min(this.tier + 1, Math.max(this.tier, GTUtil.getFloorTierByVoltage(energyCont.getInputVoltage())));
+    }
+
+    public static int getDepletionChance(int tier) {
+        if (tier == GTValues.MV)
+            return 1;
+        if (tier == GTValues.HV)
+            return 2;
+        if (tier == GTValues.EV)
+            return 8;
+        return 1;
+    }
+
+    public static int getRigMultiplier(int tier) {
+        if (tier == GTValues.MV)
+            return 1;
+        if (tier == GTValues.HV)
+            return 4;
+        if (tier == GTValues.EV)
+            return 16;
+        return 1;
+    }
+
+    public static Block getCasingState(int tier) {
+        if (tier == GTValues.MV)
+            return GTBlocks.CASING_STEEL_SOLID.get();
+        if (tier == GTValues.HV)
+            return GTBlocks.CASING_TITANIUM_STABLE.get();
+        if (tier == GTValues.EV)
+            return GTBlocks.CASING_TUNGSTENSTEEL_ROBUST.get();
+        return GTBlocks.CASING_STEEL_SOLID.get();
+    }
+
+    public static Material getFrameMaterial(int tier) {
+        return switch (tier) {
+            case GTValues.MV -> GTMaterials.Steel;
+            case GTValues.HV -> GTMaterials.Titanium;
+            case GTValues.EV -> GTMaterials.TungstenSteel;
+            default -> GTMaterials.Steel;
+        };
+    }
+
+    public static ResourceLocation getBaseTexture(int tier) {
+        if (tier == GTValues.MV)
+            return GTCEu.id("block/casings/solid/machine_casing_solid_steel");
+        if (tier == GTValues.HV)
+            return GTCEu.id("block/casings/solid/machine_casing_stable_titanium");
+        if (tier == GTValues.EV)
+            return GTCEu.id("block/casings/solid/machine_casing_robust_tungstensteel");
+        return GTCEu.id("block/casings/solid/machine_casing_solid_steel");
+    }
+}

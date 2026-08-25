@@ -1,0 +1,97 @@
+name: Core source build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare Gradle wrapper
+        run: chmod +x ./gradlew
+
+      - name: Fetch the pinned EMI dependency
+        run: |
+          EMI_JAR="$RUNNER_TEMP/emi-1.1.24+1.21.1+neoforge.jar"
+          curl --fail --location --retry 5 --retry-all-errors \
+            --connect-timeout 20 --max-time 180 --output "$EMI_JAR" \
+            "https://cdn.modrinth.com/data/fRiHVvU7/versions/5sIPA1To/emi-1.1.24%2B1.21.1%2Bneoforge.jar"
+          echo "b68691f94f0727fc517cac2ab55bd6658d1179cc8cc715fe610b60c37469bc4c  $EMI_JAR" \
+            | sha256sum --check --strict
+          test "$(stat --format=%s "$EMI_JAR")" -eq 1111538
+
+      - name: Fetch the pinned ModularUI snapshot
+        run: |
+          MUI_REPO="$RUNNER_TEMP/maven-repo"
+          MUI_DIR="$MUI_REPO/brachy/modularui/modularui-mc1.21.1/3.3.1-SNAPSHOT"
+          MUI_BASE="https://maven.gtceu.com/brachy/modularui/modularui-mc1.21.1/3.3.1-SNAPSHOT"
+          MUI_TIMESTAMP="3.3.1-20260718.084355-4"
+          MUI_PREFIX="modularui-mc1.21.1"
+          mkdir -p "$MUI_DIR"
+          for artifact in \
+            "maven-metadata.xml" \
+            "$MUI_PREFIX-$MUI_TIMESTAMP.jar" \
+            "$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar" \
+            "$MUI_PREFIX-$MUI_TIMESTAMP.module" \
+            "$MUI_PREFIX-$MUI_TIMESTAMP.pom" \
+            "$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json"; do
+            curl --fail --location --retry 5 --retry-all-errors \
+              --connect-timeout 20 --max-time 180 \
+              --output "$MUI_DIR/$artifact" "$MUI_BASE/$artifact"
+          done
+          echo "04a6e55b5f0e29ba137516586d3dad1c56d01ec8bc6786df9f39836490dedffc4  $MUI_DIR/maven-metadata.xml" \
+            | sha256sum --check --strict
+          test "$(stat --format=%s "$MUI_DIR/maven-metadata.xml")" -eq 1611
+          echo "0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar" \
+            | sha256sum --check --strict
+          test "$(stat --format=%s "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar")" -eq 1761336
+          echo "6bad38c38437d20a43051e81747bf477b8faec1299b8388fdd68821896fd97fa  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar" \
+            | sha256sum --check --strict
+          test "$(stat --format=%s "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar")" -eq 806832
+          echo "282644e36f0c717f52a3f0c4e7617ff927f833def555dec1480990bb4a528a9e  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.module" \
+            | sha256sum --check --strict
+          echo "803eb3fc46f2f183db879656c3ee9c8b265abb24244a42548481e0b825cc2084  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom" \
+            | sha256sum --check --strict
+          echo "2f43d8dd3052631005f98cb6283e11981fd76539c78b997125b15caf77b903b3  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json" \
+            | sha256sum --check --strict
+          # Keep the snapshot coordinate resolvable even if Gradle falls back
+          # from timestamped metadata to the conventional snapshot filename.
+          cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.jar"
+          cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT-sources.jar"
+          cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.module" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.module"
+          cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.pom"
+          cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT-interfaceinjection.json"
+          echo "MUI_REPO=$MUI_REPO" >> "$GITHUB_ENV"
+
+      - name: Compile and package
+        run: |
+          ./gradlew --no-daemon --stacktrace \
+            "-Precovered_emi_jar=$RUNNER_TEMP/emi-1.1.24+1.21.1+neoforge.jar" \
+            "-Precovered_maven_repo=$MUI_REPO" \
+            clean compileJava compileTestJava jar sourcesJar test
+
+      - name: Verify build outputs
+        run: |
+          test -n "$(find build/classes/java/main -type f -name '*.class' -print -quit)"
+          test -n "$(find build/classes/java/test -type f -name '*.class' -print -quit)"
+          test -n "$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -n "$(find build/libs -maxdepth 1 -type f -name '*-sources.jar' -print -quit)"

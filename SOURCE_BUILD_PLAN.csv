@@ -1,0 +1,52 @@
+operation,path,before_sha256,after_sha256,reason
+add,FORK_PROVENANCE.properties,,116071f0966adaa29e0f6791278170f23daa07261650e24d7b535ba9c9ae0f6a,restore recovered fork provenance companion
+add,license_bundle/META-INF/LICENSE_GTCEU_LGPL-3.0.txt,,da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/LICENSE_PROVENANCE.csv,,ae4b35375f3cf85e38a2a4616d59f1c969898d2d0c3fcf4df30176038fdaa037,include licence provenance/notice in the sources JAR
+add,license_bundle/META-INF/THIRD_PARTY_NOTICES.md,,1511d4675373bd175e61ed05c67fd6ba9149da66b3af914dc999b787a8d60c21,include licence provenance/notice in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/CodeChickenLib-LGPL-2.1-or-later.txt,,2a7ea4a4ea07203bf2dcd82aa97bebdad29e1a6bb3dfee221524d2ac3be8e5db,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/Configuration-MIT.txt,,0e5c71f665e3c68e266260c2b35ec75f18b503b89d0a122fe15c675ab1a9c062,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/ConnectedTexturesMod-GPL-2.0-or-later.txt,,0866dc15d7608b6896f2c8d61158c1daa5c48577517479b207521071eeb7dd4f,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/Dragonborn-Lib-LGPL-2.1.txt,,20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/EvalEx-Apache-2.0.txt,,c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/Font-OFL-1.1.txt,,ebc109078c06f79af74cf2b27454c262830d12a65749f0e2bf25d1ac1db7a02a,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/GPL-3.0-only.txt,,7fe14716ed31cc71fc3bf9af293c368d464a853a70ea86e9995388f6b9e929e5,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/LGPL-3.0-only.txt,,dd983fe376f82d06b33a700497f437fdf3a78fd786eb961aa05b34adc5ca077c,include hash-pinned licence body in the sources JAR
+add,license_bundle/META-INF/third_party_licenses/Registrate-MPL-2.0.txt,,a0b47b27d905162a390b1f069c56fd6a9be35fd99f629c7102bb05436b07f600,include hash-pinned licence body in the sources JAR
+add,src/main/resources/META-INF/AI_DISCLOSURE.md,,5d55b2de799cee3f6c16f18181a0ce29cdf54965dec9317cc05275a51e7bf9c4,include checked-in fork provenance/review metadata
+add,src/main/resources/META-INF/CHANGELOG-ATM10.md,,18cea5eb4081dde7b05785697b1c8cc0f4697f00a15768fdeb5bdca6a24dbb10,include checked-in fork provenance/review metadata
+add,src/main/resources/META-INF/LICENSE_GTCEU_LGPL-3.0.txt,,da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/LICENSE_PROVENANCE.csv,,ae4b35375f3cf85e38a2a4616d59f1c969898d2d0c3fcf4df30176038fdaa037,include checked-in fork provenance/review metadata
+add,src/main/resources/META-INF/THIRD_PARTY_NOTICES.md,,1511d4675373bd175e61ed05c67fd6ba9149da66b3af914dc999b787a8d60c21,include checked-in fork provenance/review metadata
+add,src/main/resources/META-INF/UPSTREAM.md,,448089c9a64f3ceba172eefa31255a78604c022409e6b99c911f1fb36a3d326f,include checked-in fork provenance/review metadata
+add,src/main/resources/META-INF/third_party_licenses/CodeChickenLib-LGPL-2.1-or-later.txt,,2a7ea4a4ea07203bf2dcd82aa97bebdad29e1a6bb3dfee221524d2ac3be8e5db,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/Configuration-MIT.txt,,0e5c71f665e3c68e266260c2b35ec75f18b503b89d0a122fe15c675ab1a9c062,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/ConnectedTexturesMod-GPL-2.0-or-later.txt,,0866dc15d7608b6896f2c8d61158c1daa5c48577517479b207521071eeb7dd4f,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/Dragonborn-Lib-LGPL-2.1.txt,,20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/EvalEx-Apache-2.0.txt,,c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/Font-OFL-1.1.txt,,ebc109078c06f79af74cf2b27454c262830d12a65749f0e2bf25d1ac1db7a02a,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/GPL-3.0-only.txt,,7fe14716ed31cc71fc3bf9af293c368d464a853a70ea86e9995388f6b9e929e5,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/LGPL-3.0-only.txt,,dd983fe376f82d06b33a700497f437fdf3a78fd786eb961aa05b34adc5ca077c,include hash-pinned licence body in the runtime JAR
+add,src/main/resources/META-INF/third_party_licenses/Registrate-MPL-2.0.txt,,a0b47b27d905162a390b1f069c56fd6a9be35fd99f629c7102bb05436b07f600,include hash-pinned licence body in the runtime JAR
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/GTRecipeParallelArithmeticGameTest.java,,2e0f87f4a08dd939bcd3456e82103d9ba5e40f88ec5e3473dccc0424152f5aea,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/RecipeRunnerChanceRollGameTest.java,,c1a524fd02b482bb9f9ef9db8c0b471bf84b16f7886126c2afa52b5e2b1f79da,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/chance/logic/ChanceLogicCompatibilityGameTest.java,,32df553155b2d5281cab97f16e22f8901111e85bfa5c8ef54f573aba7a1aeb07,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/ingredient/EnergyStackArithmeticGameTest.java,,460b0dcd551e4c6fe84c0fcf7a20daebad021cf3a04e5a85f18a691b3b32adb5,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/lookup/RecipeIndexTransactionGameTest.java,,8c014798730040ceced08bae45c4382a661df49080c527d01edf5fd49d6726a3,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/modifier/ModifierFunctionParallelArithmeticGameTest.java,,d1be14a8ffd1749a768059922288d33cb85a0017307eefe83e706fa92ea681ec,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/api/recipe/modifier/ParallelLogicArithmeticGameTest.java,,e06af91c6e821a4cbdfe1ffe1a1e2980bf803155d519dd205b42ad55f4fac2b4,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/common/data/GTRecipeViewerLayoutGameTest.java,,c4889677ee0aac0b8caffa87cdebdbf8818aefa781f103709817776243c7b613,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/data/recipe/builder/GTRecipeBuilderCompatibilityGameTest.java,,3be89cf0c36e1339276a6f87c7b39d3321f0841bf42ce6c4e38cc7f2b14b8eb5,include the reviewed recovery-maintenance GameTest fixture
+add,src/test/java/com/gregtechceu/gtceu/integration/jade/provider/ParallelProviderArithmeticGameTest.java,,398166e9f83a22f5fbdfe889235e28643f70c050caa118ce91aab8317c0283ca,include the reviewed recovery-maintenance GameTest fixture
+transform,dependencies.gradle,eb0bde06b0902f03fbd45674ffac6be6d95652e3e07eb7604343d0428fa2471c,86fac835ccf5995840e5e5c16e4027f8ae00f468fd0384cd1feaa63a4750f01e,restore JEI Crafting Tree and enforce the byte-identical recovered EMI artifact
+transform,gradle.properties,768aa74cb8303b5527f3ab6ebda58741c9a16220eb22c25010a9a67020eec737,719b024540575014a4fff45f4daaed6ca00513da11ee421ccfc5ec48513420e1,set fork version/name/group and recovered revision properties
+transform,gradle/forge.versions.toml,3fe41e95069ec3c36f21420233e523a0bba7eac98b327caefe8387e57c1f6801,5cf8bcb8bddd0b129ef0f6f2a54f9eca7520ec944f822aef6f9c1e4f37d33846,restore JEI/JEI Crafting Tree coordinates and use the byte-identical Modrinth EMI artifact
+transform,gradle/scripts/jars.gradle,f2d7eb4719805bf1461d0cc7aedc9fc4206bd0cce2de1d38f5149bdb4114f61d,ee8a9db4edc90e5c46c1ec9176c765f79b260b2bae63cad7cd467beb68efe941,restore fork/upstream/AI JAR manifest attributes and sources-JAR licence bundle
+transform,gradle/scripts/spotless.gradle,5e9c8a51bda3fd173dca259f8e3bacf615b95fe7b010947185623023ddf5e7bc,0d5d52174e6f3362ed90d383033e46630445ab9fae81afa9c591765594820111,remove unavailable Git ratchet only; retain full Spotless checks
+transform,gradle/wrapper/gradle-wrapper.properties,51605317bc8dc8df49c6a8e47c125ac441f5de5d526078db46591b520a192530,b38d324abfc89ac9585c091e68ec4a159d0cfe348742f3964482e8298d447330,pin the official Gradle 8.14 distribution SHA-256
+transform,src/main/resources/mixin_configs/gtceu-emi.mixins.json,9b0f9201fb25d0f2bb6e76f786da22a18fff891ad9736922cccf9a8b99475ee8,466d32334e0dbfeb0f1fc2ec51937c5e0e1b1510c1e685fe8e188aed6872b63f,restore recovered GTCEu JEI/EMI lifecycle Mixin registrations from the pinned mother config
+transform,src/main/resources/mixin_configs/gtceu-jei.mixins.json,5a5a28bdc3d0b8af4a5f51511382cd6c5fe5eef604cd517cac6feddc48e74528,ed6d2a367d2570b5af86a9a687f77b70ff0d3e7ed4f581f48efb307f1f8ae3d3,restore recovered GTCEu JEI/EMI lifecycle Mixin registrations from the pinned mother config
+verify,gradle/wrapper/gradle-wrapper.jar,7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172,7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172,preserve restored build input byte-for-byte
+verify,injected_interfaces/interfaces.json,11c30b008a19369f567332abeddb43aafcfd7e75c2286ed1244ac973819287cb,11c30b008a19369f567332abeddb43aafcfd7e75c2286ed1244ac973819287cb,preserve restored build input byte-for-byte
+verify,spotless/spotless.eclipseformat.xml,313232107175a1cf7e7bb1a4fe20fcefdf642e4d9d37c8e5f4e6a307740bd89d,313232107175a1cf7e7bb1a4fe20fcefdf642e4d9d37c8e5f4e6a307740bd89d,preserve restored build input byte-for-byte
+verify,spotless/spotless.importorder,045a92c90ed106e716f2de248ae38caa9bc6e0fbdd4b4951c0d1836fd666e96a,045a92c90ed106e716f2de248ae38caa9bc6e0fbdd4b4951c0d1836fd666e96a,preserve restored build input byte-for-byte
+verify,spotless/spotless.ktlint,3af57f505a6956ec6193b75b3300800f0a21612b274fbd84795b82fe87a5381c,3af57f505a6956ec6193b75b3300800f0a21612b274fbd84795b82fe87a5381c,preserve restored build input byte-for-byte

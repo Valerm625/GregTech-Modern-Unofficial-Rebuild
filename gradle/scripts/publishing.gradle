@@ -1,0 +1,16 @@
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+
+    // Keep publication local until this fork owns and documents a repository.
+    repositories {
+        maven {
+            name = "localForkStaging"
+            url = layout.buildDirectory.dir("staging-deploy")
+        }
+    }
+}

@@ -1,0 +1,133 @@
+package com.gregtechceu.gtceu.integration.ae2.machine;
+
+import com.gregtechceu.gtceu.api.GTValues;
+import com.gregtechceu.gtceu.api.blockentity.BlockEntityCreationInfo;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
+import com.gregtechceu.gtceu.api.machine.feature.IMuiMachine;
+import com.gregtechceu.gtceu.api.machine.mui.MachineUIPanelBuilder;
+import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredIOPartMachine;
+import com.gregtechceu.gtceu.api.machine.trait.recipe.RecipeHandlerList;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SyncToClient;
+import com.gregtechceu.gtceu.common.data.item.GTDataComponents;
+import com.gregtechceu.gtceu.integration.ae2.machine.trait.ProxySlotRecipeHandler;
+
+import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+
+import brachy.modularui.factory.PosGuiData;
+import brachy.modularui.screen.UISettings;
+import brachy.modularui.value.sync.PanelSyncManager;
+import brachy.modularui.widget.ParentWidget;
+import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
+public class MEPatternBufferProxyPartMachine extends TieredIOPartMachine
+                                             implements IMuiMachine, IDataStickInteractable {
+
+    @Getter
+    private final ProxySlotRecipeHandler proxySlotRecipeHandler;
+
+    @SaveField
+    @Getter
+    @SyncToClient
+    private @Nullable BlockPos bufferPos;
+
+    private @Nullable MEPatternBufferPartMachine buffer = null;
+    private boolean bufferResolved = false;
+
+    public MEPatternBufferProxyPartMachine(BlockEntityCreationInfo info) {
+        super(info, GTValues.LuV, IO.IN);
+        proxySlotRecipeHandler = new ProxySlotRecipeHandler(this);
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (!isRemote()) this.setBuffer(bufferPos);
+    }
+
+    @Override
+    public List<RecipeHandlerList> getRecipeHandlers() {
+        var buf = getBuffer();
+        if (buf != null) {
+            proxySlotRecipeHandler.updateProxy(buf);
+        } else {
+            proxySlotRecipeHandler.clearProxy();
+        }
+        return proxySlotRecipeHandler.getProxySlotHandlers();
+    }
+
+    public void setBuffer(@Nullable BlockPos pos) {
+        bufferResolved = true;
+        var level = getLevel();
+        if (level == null || pos == null) {
+            buffer = null;
+        } else if (MetaMachine.getMachine(level, pos) instanceof MEPatternBufferPartMachine machine) {
+            bufferPos = pos;
+            buffer = machine;
+            machine.addProxy(this);
+            if (!isRemote()) proxySlotRecipeHandler.updateProxy(machine);
+        } else {
+            buffer = null;
+        }
+        syncDataHolder.markClientSyncFieldDirty("bufferPos");
+    }
+
+    @Nullable
+    public MEPatternBufferPartMachine getBuffer() {
+        if (!bufferResolved) setBuffer(bufferPos);
+        return buffer;
+    }
+
+    @Override
+    public boolean shouldOpenUI(Player player, InteractionHand hand, BlockHitResult hit) {
+        return getBuffer() != null;
+    }
+
+    @Override
+    public MachineUIPanelBuilder getPanelBuilder(PosGuiData data, PanelSyncManager syncManager, UISettings settings) {
+        assert getBuffer() != null;
+        return getBuffer().getPanelBuilder(data, syncManager, settings);
+    }
+
+    @Override
+    public void buildMainUI(ParentWidget<?> mainWidget, PosGuiData guiData, PanelSyncManager syncManager,
+                            UISettings settings) {
+        assert getBuffer() != null;
+        getBuffer().buildMainUI(mainWidget, guiData, syncManager, settings);
+    }
+
+    @Override
+    public void onMachineDestroyed() {
+        super.onMachineDestroyed();
+        var buf = getBuffer();
+        if (buf != null) {
+            buf.removeProxy(this);
+            proxySlotRecipeHandler.clearProxy();
+        }
+    }
+
+    @Override
+    public InteractionResult onDataStickUse(Player player, ItemStack dataStick) {
+        BlockPos bufferPos = dataStick.get(GTDataComponents.DATA_COPY_POS);
+        if (bufferPos != null) {
+            setBuffer(bufferPos);
+            return InteractionResult.SUCCESS;
+        }
+        return InteractionResult.PASS;
+    }
+}

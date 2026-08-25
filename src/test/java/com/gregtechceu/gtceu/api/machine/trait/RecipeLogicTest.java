@@ -1,0 +1,348 @@
+package com.gregtechceu.gtceu.api.machine.trait;
+
+import com.gregtechceu.gtceu.GTCEu;
+import com.gregtechceu.gtceu.api.GTValues;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.machine.trait.recipe.RecipeLogic;
+import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
+import com.gregtechceu.gtceu.common.machine.multiblock.part.ItemBusPartMachine;
+import com.gregtechceu.gtceu.gametest.util.TestUtils;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.BeforeBatch;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+
+@PrefixGameTestTemplate(false)
+@GameTestHolder(GTCEu.MOD_ID)
+public class RecipeLogicTest {
+
+    private static GTRecipeType LCR_RECIPE_TYPE;
+    private static GTRecipeType CR_RECIPE_TYPE;
+
+    @BeforeBatch(batch = "RecipeLogic")
+    public static void prepare(ServerLevel level) {
+        LCR_RECIPE_TYPE = TestUtils.createRecipeType("recipe_logic_test_lcr", GTRecipeTypes.LARGE_CHEMICAL_RECIPES);
+        CR_RECIPE_TYPE = TestUtils.createRecipeType("recipe_logic_test_cr", GTRecipeTypes.CHEMICAL_RECIPES);
+
+        LCR_RECIPE_TYPE.getAdditionHandler().beginStaging();
+        LCR_RECIPE_TYPE.getAdditionHandler().addStaging(LCR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_multiblock_recipelogic"))
+                .inputItems(new ItemStack(Blocks.COBBLESTONE))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        LCR_RECIPE_TYPE.getAdditionHandler().addStaging(LCR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_multiblock_recipelogic_16_items"))
+                .inputItems(new ItemStack(Blocks.STONE, 16))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        // Two candidates with disjoint input-item type sets, so both are yielded by the search at once.
+        // Candidate A: only its 2nd item ends up short -> 1 of 2 contents satisfied (score 0.5).
+        LCR_RECIPE_TYPE.getAdditionHandler().addStaging(LCR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_close_a"))
+                .inputItems(new ItemStack(Blocks.DIRT, 16), new ItemStack(Blocks.GRAVEL, 16))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        // Candidate B: both items short -> 0 of 2 contents satisfied (score 0.0).
+        LCR_RECIPE_TYPE.getAdditionHandler().addStaging(LCR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_close_b"))
+                .inputItems(new ItemStack(Blocks.NETHERRACK, 16), new ItemStack(Blocks.SAND, 16))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        // Single-ingredient recipe used to test that a stalled "last recipe" keeps top priority.
+        LCR_RECIPE_TYPE.getAdditionHandler().addStaging(LCR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_priority_last"))
+                .inputItems(new ItemStack(Items.EMERALD, 1))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        LCR_RECIPE_TYPE.getAdditionHandler().completeStaging();
+
+        CR_RECIPE_TYPE.getAdditionHandler().beginStaging();
+        CR_RECIPE_TYPE.getAdditionHandler().addStaging(CR_RECIPE_TYPE
+                .recipeBuilder(GTCEu.id("test_singleblock_recipelogic"))
+                .inputItems(new ItemStack(Blocks.COBBLESTONE))
+                .outputItems(new ItemStack(Blocks.STONE))
+                .EUt(GTValues.VA[GTValues.HV]).duration(1)
+                .build());
+        CR_RECIPE_TYPE.getAdditionHandler().completeStaging();
+    }
+
+    private static ResourceLocation lcrRecipeId(String name) {
+        return GTCEu.id(LCR_RECIPE_TYPE.registryName.getPath() + "/" + name);
+    }
+
+    private record BusHolder(ItemBusPartMachine inputBus1, ItemBusPartMachine inputBus2, ItemBusPartMachine outputBus1,
+                             WorkableMultiblockMachine controller) {}
+
+    /**
+     * Retrieves the busses for this specific template and force a multiblock structure check
+     *
+     * @param helper the GameTestHelper
+     * @return the busses, in the BusHolder record.
+     */
+    private static RecipeLogicTest.BusHolder getBussesAndForm(GameTestHelper helper) {
+        WorkableMultiblockMachine controller = (WorkableMultiblockMachine) helper.getBlockEntity(new BlockPos(1, 2, 0));
+        assert controller != null;
+        TestUtils.formMultiblock(helper, controller);
+        controller.setRecipeType(LCR_RECIPE_TYPE);
+        ItemBusPartMachine inputBus1 = (ItemBusPartMachine) helper.getBlockEntity(new BlockPos(2, 1, 0));
+        ItemBusPartMachine inputBus2 = (ItemBusPartMachine) helper.getBlockEntity(new BlockPos(2, 2, 0));
+        ItemBusPartMachine outputBus1 = (ItemBusPartMachine) helper.getBlockEntity(new BlockPos(0, 1, 0));
+        return new RecipeLogicTest.BusHolder(inputBus1, inputBus2, outputBus1, controller);
+    }
+
+    @TestHolder
+    @GameTest(template = "lcr_input_separation", batch = "RecipeLogic")
+    public static void recipeLogicMultiBlockTest(GameTestHelper helper) {
+        BlockEntity holder = helper.getBlockEntity(new BlockPos(1, 2, 0));
+
+        RecipeLogicTest.BusHolder busHolder = getBussesAndForm(helper);
+
+        helper.assertTrue(busHolder.controller.isFormed(), "Controller didn't form after structure check");
+        helper.assertTrue(busHolder.controller.getParts().size() == 6,
+                "Controller didn't register all 6 parts after structure check, only registered " +
+                        busHolder.controller.getParts().size());
+
+        RecipeLogic recipeLogic = busHolder.controller.getRecipeLogic();
+
+        recipeLogic.findAndHandleRecipe();
+
+        // No recipe found
+        helper.assertFalse(recipeLogic.isActive(), "Recipe logic is active, even when it shouldn't be");
+        helper.assertTrue(recipeLogic.getLastRecipe() == null,
+                "Recipe logic has somehow found a recipe, when there should be none");
+
+        // Put an item in the inventory that will trigger recipe recheck
+        NotifiableItemStackHandler inputSlots = busHolder.inputBus1.getInventory();
+        NotifiableItemStackHandler outputSlots = busHolder.outputBus1.getInventory();
+
+        inputSlots.insertItem(0, new ItemStack(Blocks.COBBLESTONE, 16), false);
+
+        recipeLogic.findAndHandleRecipe();
+        helper.assertFalse(recipeLogic.getLastRecipe() == null,
+                "Last recipe is empty, even though recipe logic should've found a recipe.");
+        helper.assertTrue(recipeLogic.isActive(), "Recipelogic is inactive, when it should be active.");
+        int stackCount = inputSlots.getStackInSlot(0).getCount();
+        helper.assertTrue(stackCount == 15, "Count is wrong (should be 15, when it's %s)".formatted(stackCount));
+
+        // Save a reference to the old recipe so we can make sure it's getting reused
+        GTRecipe prev = recipeLogic.getLastRecipe();
+
+        // Finish the recipe, the output should generate, and the next iteration should begin
+        recipeLogic.serverTick();
+        helper.assertTrue(recipeLogic.getLastRecipe().equals(prev), "lastRecipe is wrong");
+        helper.assertTrue(
+                TestUtils.isItemStackEqual(outputSlots.getStackInSlot(0),
+                        new ItemStack(Blocks.STONE, 1)),
+                "wrong output stack.");
+        helper.assertTrue(recipeLogic.isActive(), "RecipeLogic is not active, when it should be.");
+
+        // Complete the second iteration, but the machine stops because its output is now full
+        // Fill up the recipe with enough stone to complete 1 more recipe and then nothing more.
+        outputSlots.setStackInSlot(0,
+                new ItemStack(Blocks.STONE, 63));
+        for (int i = 1; i < outputSlots.getSlots(); i++) {
+            outputSlots.setStackInSlot(i,
+                    new ItemStack(Blocks.STONE, 64));
+        }
+        recipeLogic.serverTick();
+        helper.assertFalse(recipeLogic.isActive(), "RecipeLogic is active, when it shouldn't be.");
+
+        // Try to process again and get failed out because of full buffer.
+        recipeLogic.serverTick();
+        helper.assertFalse(recipeLogic.isActive(), "Recipelogic is active, when it shouldn't be.");
+
+        // Some room is freed in the output bus, so we can continue now.
+        outputSlots.setStackInSlot(0, ItemStack.EMPTY);
+        recipeLogic.serverTick();
+        helper.assertTrue(recipeLogic.isActive(), "RecipeLogic didn't start running again");
+        recipeLogic.serverTick();
+        helper.assertTrue(
+                TestUtils.isItemStackEqual(outputSlots.getStackInSlot(0),
+                        new ItemStack(Blocks.STONE, 1)),
+                "Wrong stack.");
+
+        // Finish.
+        helper.succeed();
+    }
+
+    // spotless:off
+    // Blocked by LDLib sync issues
+    /*
+    @TestHolder
+    @GameTest(template = "singleblock_charged_cr", batch = "RecipeLogic")
+    public static void recipeLogicSingleBlockTest(GameTestHelper helper) {
+        WorkableTieredMachine machine = (WorkableTieredMachine) getMetaMachine(
+                helper.getBlockEntity(new BlockPos(0, 1, 0)));
+
+        machine.setRecipeType(CR_RECIPE_TYPE);
+        NotifiableItemStackHandler inputSlots = (NotifiableItemStackHandler) machine
+                .getCapabilitiesFlat(IO.IN, ItemRecipeCapability.CAP).get(0);
+        NotifiableItemStackHandler outputSlots = (NotifiableItemStackHandler) machine
+                .getCapabilitiesFlat(IO.OUT, ItemRecipeCapability.CAP).get(0);
+
+
+        RecipeLogic recipeLogic = machine.getRecipeLogic();
+
+        recipeLogic.findAndHandleRecipe();
+
+        // no recipe found
+        helper.assertFalse(recipeLogic.isActive(), "Recipe logic is active, even when it shouldn't be");
+        helper.assertTrue(recipeLogic.getLastRecipe() == null,
+                "Recipe logic has somehow found a recipe, when there should be none");
+
+        inputSlots.insertItem(0, new ItemStack(Blocks.COBBLESTONE, 16), false);
+        inputSlots.onContentsChanged();
+
+        recipeLogic.findAndHandleRecipe();
+        helper.assertFalse(recipeLogic.getLastRecipe() == null,
+                "Last recipe is empty, even though recipe logic should've found a recipe.");
+        helper.assertTrue(recipeLogic.isActive(), "Recipelogic is inactive, when it should be active.");
+        int stackCount = inputSlots.getStackInSlot(0).getCount();
+        helper.assertTrue(stackCount == 15, "Count is wrong (should be 15, when it's %s)".formatted(stackCount));
+
+        // Save a reference to the old recipe so we can make sure it's getting reused
+        ResourceLocation prev = recipeLogic.getLastRecipe().getId();
+
+        // Finish the recipe, the output should generate, and the next iteration should begin
+        recipeLogic.serverTick();
+        helper.assertTrue(recipeLogic.getLastRecipe().getId().equals(prev), "lastRecipe is wrong");
+        helper.assertTrue(TestUtils.isItemStackEqual(
+                outputSlots.getStackInSlot(0),
+                new ItemStack(Blocks.STONE, 1)),
+                "wrong output stack.");
+        helper.assertTrue(recipeLogic.isActive(), "RecipeLogic is not active, when it should be.");
+
+        // Complete the second iteration, but the machine stops because its output is now full
+        outputSlots.setStackInSlot(0,
+                new ItemStack(Blocks.STONE, 63));
+        outputSlots.setStackInSlot(1,
+                new ItemStack(Blocks.STONE, 64));
+        recipeLogic.serverTick();
+        helper.assertFalse(recipeLogic.isActive(), "RecipeLogic is active, when it shouldn't be.");
+
+        // Try to process again and get failed out because of full buffer.
+        recipeLogic.serverTick();
+        helper.assertFalse(recipeLogic.isActive(), "Recipelogic is active, when it shouldn't be.");
+
+        // Some room is freed in the output bus, so we can continue now.
+        outputSlots.setStackInSlot(0, ItemStack.EMPTY);
+        recipeLogic.serverTick();
+        helper.assertTrue(recipeLogic.isActive(), "RecipeLogic didn't start running again");
+        recipeLogic.serverTick();
+        helper.assertTrue(
+                TestUtils.isItemStackEqual(
+                        outputSlots.getStackInSlot(0),
+                        new ItemStack(Blocks.STONE, 1)),
+                "Wrong stack.");
+
+        // Finish.
+        helper.succeed();
+    }
+     */
+    // spotless:on
+
+    // Test for putting both ingredients in the same bus in 2 stacks.
+    @TestHolder
+    @GameTest(template = "lcr_input_separation", batch = "RecipeLogicTest")
+    public static void recipeLogicInTwoStacksTest(GameTestHelper helper) {
+        RecipeLogicTest.BusHolder busHolder = getBussesAndForm(helper);
+        busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.STONE, 10));
+        busHolder.inputBus1.getInventory().setStackInSlot(1, new ItemStack(Blocks.STONE, 6));
+        busHolder.controller.recipeLogic.findAndHandleRecipe();
+        helper.assertTrue(busHolder.controller.recipeLogic.isWorking(), "Controller should be working!");
+        busHolder.controller.recipeLogic.isWorking();
+        helper.succeedWhen(() -> {
+            helper.assertTrue(
+                    TestUtils.isItemStackEqual(busHolder.outputBus1.getInventory().getStackInSlot(0),
+                            new ItemStack(Blocks.STONE, 1)),
+                    "Crafting items in same bus failed, expected STONE but was " +
+                            busHolder.outputBus1.getInventory().getStackInSlot(0).getDisplayName());
+        });
+    }
+
+    /**
+     * When several recipes fail, only the single most-relevant reason should be surfaced: the candidate closest to
+     * succeeding (highest fraction of contents satisfied), not a wall of every failed recipe.
+     */
+    @TestHolder
+    @GameTest(template = "lcr_input_separation", batch = "RecipeLogic")
+    public static void recipeLogicClosestFailureReasonTest(GameTestHelper helper) {
+        RecipeLogicTest.BusHolder busHolder = getBussesAndForm(helper);
+        RecipeLogic recipeLogic = busHolder.controller.getRecipeLogic();
+
+        // Candidate A (test_close_a): dirt satisfied, gravel short -> 1 of 2 contents = score 0.5
+        busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.DIRT, 16));
+        busHolder.inputBus1.getInventory().setStackInSlot(1, new ItemStack(Blocks.GRAVEL, 8));
+        // Candidate B (test_close_b): both short -> 0 of 2 contents = score 0.0
+        busHolder.inputBus2.getInventory().setStackInSlot(0, new ItemStack(Blocks.NETHERRACK, 8));
+        busHolder.inputBus2.getInventory().setStackInSlot(1, new ItemStack(Blocks.SAND, 8));
+
+        recipeLogic.findAndHandleRecipe();
+
+        helper.assertFalse(recipeLogic.isActive(), "No recipe should run when all candidates are short");
+        double score = recipeLogic.getBestFailureScore();
+        helper.assertTrue(Math.abs(score - 0.5) < 1e-6,
+                "Closest candidate (A) score should be 0.5, was " + score);
+        helper.assertTrue(recipeLogic.getBestFailureReason() != null &&
+                !recipeLogic.getBestFailureReason().getString().isBlank(),
+                "A single, non-blank failure reason should be surfaced");
+        var failureRecipe = recipeLogic.getBestFailureRecipe();
+        helper.assertTrue(failureRecipe != null &&
+                lcrRecipeId("test_close_a").equals(failureRecipe.getId()),
+                "The surfaced reason should be attributed to the closest candidate (test_close_a), was " +
+                        (failureRecipe == null ? "null" : failureRecipe.getId()));
+
+        helper.succeed();
+    }
+
+    /**
+     * If the machine was already running a recipe and it can no longer continue, that recipe's reason must win
+     * unconditionally - even when another candidate is closer to succeeding.
+     */
+    @TestHolder
+    @GameTest(template = "lcr_input_separation", batch = "RecipeLogic")
+    public static void recipeLogicLastRecipePriorityTest(GameTestHelper helper) {
+        RecipeLogicTest.BusHolder busHolder = getBussesAndForm(helper);
+        RecipeLogic recipeLogic = busHolder.controller.getRecipeLogic();
+
+        // Start the priority recipe so it becomes the "last recipe" (its single emerald is consumed on setup).
+        busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Items.EMERALD, 1));
+        recipeLogic.findAndHandleRecipe();
+        helper.assertFalse(recipeLogic.getLastRecipe() == null, "Priority recipe should have started");
+
+        // Now stage a closer-scoring (0.5) candidate A. The last recipe can no longer run (no emerald left).
+        busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.DIRT, 16));
+        busHolder.inputBus1.getInventory().setStackInSlot(1, new ItemStack(Blocks.GRAVEL, 8));
+
+        recipeLogic.findAndHandleRecipe();
+
+        double score = recipeLogic.getBestFailureScore();
+        helper.assertTrue(Double.isInfinite(score) && score > 0,
+                "The stalled last recipe's reason should be locked in with top priority, score was " + score);
+        var failureRecipe = recipeLogic.getBestFailureRecipe();
+        helper.assertTrue(failureRecipe != null &&
+                lcrRecipeId("test_priority_last").equals(failureRecipe.getId()),
+                "The surfaced reason should name the stalled last recipe (test_priority_last), not the closer " +
+                        "candidate, was " + (failureRecipe == null ? "null" : failureRecipe.getId()));
+
+        helper.succeed();
+    }
+}

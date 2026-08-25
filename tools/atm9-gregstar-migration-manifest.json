@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "status": "excluded_from_public_source",
+  "source_snapshot": "All the Mods 9 local installation (recovery evidence)",
+  "rights": "All Rights Reserved; redistribution permission not established",
+  "entries": [
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/block/micro_universe_energy_transmitter.png",
+      "destination": "assets/gtceu/textures/block/gregstar/micro_universe_energy_transmitter.png",
+      "sha256": "ca2d5cee90479ad4f8cc738e58eff31b696fafe48b50228be3aa138d55d83cfb",
+      "size": 6677
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/block/micro_universe_focus_lens.png",
+      "destination": "assets/gtceu/textures/block/gregstar/micro_universe_focus_lens.png",
+      "sha256": "ed7eec8c9c4120d6f06c5d87f5a6226ec7cee7e79394b6599591c6f280b40af0",
+      "size": 6858
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/gtceu/textures/gui/progress_bar/star_forge_empty.png",
+      "destination": "assets/gtceu/textures/gui/progress_bar/star_forge_empty.png",
+      "sha256": "fe1f497d55ebe89574bcf7ac8096a97d99070965497f281ff72dafd4cfa98c0e",
+      "size": 1258
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/gtceu/textures/gui/progress_bar/star_forge_full.png",
+      "destination": "assets/gtceu/textures/gui/progress_bar/star_forge_full.png",
+      "sha256": "3847f3b1c975aa4da7a8d430bbb8695fabdc7fe6a51bfeccde33333019a19c97",
+      "size": 1139
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/absolute_reaction_plating.png",
+      "destination": "assets/gtceu/textures/item/gregstar/absolute_reaction_plating.png",
+      "sha256": "0dfdbdaba14bf7ea3cfa8e2e8462402fa8c93b1e708d3591c169df4d4ebeec92",
+      "size": 3528
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/cable_of_hyperconductivity.png",
+      "destination": "assets/gtceu/textures/item/gregstar/cable_of_hyperconductivity.png",
+      "sha256": "76ed0c3cdf9937c099310ddbc6dd2f6ba6c49a29dce8440a539b9181ca9c4f2e",
+      "size": 1945
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/greg_star_shard.png",
+      "destination": "assets/gtceu/textures/item/gregstar/greg_star_shard.png",
+      "sha256": "15563c176932305e042e0cdae594d16ec362c931b672fa7aca8a3dd900316345",
+      "size": 224
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/micro_universe_catalyst.png",
+      "destination": "assets/gtceu/textures/item/gregstar/micro_universe_catalyst.png",
+      "sha256": "fc8f047d9f2bae516a10e9b55ff4d70b99207955ba394352de8cd860405386fd",
+      "size": 1203
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/micro_universe_drill_ship.png",
+      "destination": "assets/gtceu/textures/item/gregstar/micro_universe_drill_ship.png",
+      "sha256": "c271a8a6c040562f41b18ae4be79e2885b14a1f19d81b9e500975b877d23fdb6",
+      "size": 1203
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/star_compression_module.png",
+      "destination": "assets/gtceu/textures/item/gregstar/star_compression_module.png",
+      "sha256": "f14808d7f1af083751d47ad067030a20e3d56a5e1ba17f0b7cf47812aa054158",
+      "size": 4909
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/star_housing.png",
+      "destination": "assets/gtceu/textures/item/gregstar/star_housing.png",
+      "sha256": "f50608c00c2b52ec4c8ed675e4a91d070804021170df6505e3085bbe4a3301de",
+      "size": 3235
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/superthermal_transference_coil.png",
+      "destination": "assets/gtceu/textures/item/gregstar/superthermal_transference_coil.png",
+      "sha256": "44fc7dcdad4a02843763dfb8918549a87d266fe976439206ee943e9598a71543",
+      "size": 3894
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/superthermal_transference_coil.png.mcmeta",
+      "destination": "assets/gtceu/textures/item/gregstar/superthermal_transference_coil.png.mcmeta",
+      "sha256": "9075c6023cb891cbe5ff7f53280a6ebc76b21c9b02b4d2b082acd6948f050077",
+      "size": 76
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/ultimate_universal_press.png",
+      "destination": "assets/gtceu/textures/item/gregstar/ultimate_universal_press.png",
+      "sha256": "f9988a0848eb377850778cca0db7159fc0e19a579345c285bff4ec722341b9b1",
+      "size": 397
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/universal_addon_press.png",
+      "destination": "assets/gtceu/textures/item/gregstar/universal_addon_press.png",
+      "sha256": "566294a15d9352b77af0d3fe3236201cf6718b52d9f0d0d8283aff3e5a00c5c3",
+      "size": 474
+    },
+    {
+      "kind": "asset",
+      "source": "kubejs/assets/kubejs/textures/item/universal_press.png",
+      "destination": "assets/gtceu/textures/item/gregstar/universal_press.png",
+      "sha256": "1f8d9658d9e30ec514f4e623504bb8df42fa329c63b71f832613b6494fa2341e",
+      "size": 529
+    }
+  ]
+}

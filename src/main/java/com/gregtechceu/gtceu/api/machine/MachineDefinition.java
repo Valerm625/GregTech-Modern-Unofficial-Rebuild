@@ -1,0 +1,246 @@
+package com.gregtechceu.gtceu.api.machine;
+
+import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
+import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
+import com.gregtechceu.gtceu.api.data.RotationState;
+import com.gregtechceu.gtceu.api.item.MetaMachineItem;
+import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
+import com.gregtechceu.gtceu.api.mui.factory.PanelFactory;
+import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
+import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
+import com.gregtechceu.gtceu.utils.GTUtil;
+
+import net.minecraft.core.Direction;
+import net.minecraft.core.IdMapper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+import brachy.modularui.theme.ThemeAPI;
+import it.unimi.dsi.fastutil.objects.Reference2IntMap;
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.*;
+
+/**
+ * Representing basic information of a machine.
+ */
+public class MachineDefinition implements Supplier<MetaMachineBlock> {
+
+    public static final IdMapper<MachineRenderState> RENDER_STATE_REGISTRY = new IdMapper<>(512);
+
+    @Getter
+    private final ResourceLocation id;
+    // This is only stored here for KJS use.
+    @Getter
+    @Setter
+    @Nullable
+    private String langValue;
+    @Setter
+    private Supplier<? extends Block> blockSupplier;
+    @Setter
+    private Supplier<? extends MetaMachineItem> itemSupplier;
+    @Setter
+    private Supplier<BlockEntityType<? extends BlockEntity>> blockEntityTypeSupplier;
+    @Getter
+    @Setter
+    private GTRecipeType[] recipeTypes;
+    @Getter
+    @Setter
+    private int tier = -1;
+    @Getter
+    @Setter
+    private int defaultPaintingColor;
+    @Getter
+    @Setter
+    private RecipeModifier recipeModifier;
+    @Getter
+    @Setter
+    private boolean alwaysTryModifyRecipe;
+    @Getter
+    @Setter
+    private BiPredicate<IRecipeLogicMachine, @Nullable GTRecipe> beforeWorking = (machine, recipe) -> true;
+    @Getter
+    @Setter
+    private Predicate<IRecipeLogicMachine> onWorking = (machine) -> true;
+    @Getter
+    @Setter
+    private Consumer<IRecipeLogicMachine> onWaiting = (machine) -> {};
+    @Getter
+    @Setter
+    private Consumer<IRecipeLogicMachine> afterWorking = (machine) -> {};
+    @Getter
+    @Setter
+    private boolean regressWhenWaiting = true;
+    /** Whether this machine can be rotated or face upwards. */
+    @Getter
+    @Setter
+    private boolean allowExtendedFacing;
+
+    @Getter
+    @Setter
+    private RotationState rotationState;
+    @Setter
+    private VoxelShape shape;
+    @Getter
+    @Setter
+    private boolean renderWorldPreview;
+    @Getter
+    @Setter
+    private boolean renderXEIPreview;
+    private final Map<Direction, VoxelShape> cache = new EnumMap<>(Direction.class);
+    @Getter
+    @Setter
+    private BiConsumer<ItemStack, List<Component>> tooltipBuilder;
+    @Getter
+    @Setter
+    private Supplier<BlockState> appearance;
+    @Getter
+    @Setter
+    private boolean allowCoverOnFront;
+    @Getter
+    @Setter
+    @Nullable
+    private PanelFactory UI;
+    @Getter
+    @Setter
+    private String themeId = ThemeAPI.DEFAULT_ID;
+    @Getter
+    @Setter
+    private Reference2IntMap<RecipeCapability<?>> recipeOutputLimits = new Reference2IntOpenHashMap<>();
+
+    @Getter
+    @Setter(onMethod_ = @ApiStatus.Internal)
+    private StateDefinition<MachineDefinition, MachineRenderState> stateDefinition;
+    @Accessors(fluent = true)
+    @Getter
+    private MachineRenderState defaultRenderState;
+
+    public MachineDefinition(ResourceLocation id) {
+        this.id = id;
+    }
+
+    public boolean isTiered() {
+        return tier != -1;
+    }
+
+    public final void registerDefaultState(MachineRenderState state) {
+        this.defaultRenderState = state;
+    }
+
+    public Block getBlock() {
+        return blockSupplier.get();
+    }
+
+    public MetaMachineItem getItem() {
+        return itemSupplier.get();
+    }
+
+    public BlockEntityType<? extends BlockEntity> getBlockEntityType() {
+        return blockEntityTypeSupplier.get();
+    }
+
+    public ItemStack asStack() {
+        return new ItemStack(getItem());
+    }
+
+    public ItemStack asStack(int count) {
+        return new ItemStack(getItem(), count);
+    }
+
+    public VoxelShape getShape(Direction direction) {
+        if (shape.isEmpty() || shape == Shapes.block() || direction == Direction.NORTH) return shape;
+        return this.cache.computeIfAbsent(direction, dir -> GTUtil.rotateVoxelShape(shape, dir));
+    }
+
+    @Override
+    public MetaMachineBlock get() {
+        return (MetaMachineBlock) blockSupplier.get();
+    }
+
+    public String getName() {
+        return id.getPath();
+    }
+
+    @Override
+    public String toString() {
+        return id.toString();
+    }
+
+    public String getDescriptionId() {
+        return getBlock().getDescriptionId();
+    }
+
+    public BlockState defaultBlockState() {
+        return getBlock().defaultBlockState();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        MachineDefinition that = (MachineDefinition) o;
+
+        return id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
+    static final ThreadLocal<MachineDefinition> STATE = new ThreadLocal<>();
+
+    public static MachineDefinition getBuilt() {
+        return STATE.get();
+    }
+
+    public static void setBuilt(MachineDefinition state) {
+        STATE.set(state);
+    }
+
+    public static void clearBuilt() {
+        STATE.remove();
+    }
+
+    /**
+     * Gets the input size for a machine for the capability with the machine having the specified recipe types
+     */
+    public int getInputSize(RecipeCapability<?> cap, GTRecipeType... recipeTypes) {
+        int recipeTypeInputSize = 0;
+        for (var recipeType : recipeTypes) {
+            recipeTypeInputSize = Math.max(recipeType.getMaxInputs(cap), recipeTypeInputSize);
+        }
+        return recipeTypeInputSize;
+    }
+
+    /**
+     * Gets the output size for a machine for the capability with the machine having the specified recipe types
+     */
+    public int getOutputSize(RecipeCapability<?> cap, GTRecipeType... recipeTypes) {
+        int recipeTypeOutputSize = 0;
+        for (var recipeType : recipeTypes) {
+            recipeTypeOutputSize = Math.max(recipeType.getMaxOutputs(cap), recipeTypeOutputSize);
+        }
+        int machineTypeOutputLimit = this.getRecipeOutputLimits().getOrDefault(cap, recipeTypeOutputSize);
+        return Math.min(recipeTypeOutputSize, machineTypeOutputLimit);
+    }
+}

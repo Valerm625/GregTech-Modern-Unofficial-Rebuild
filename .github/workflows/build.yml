@@ -31,16 +31,37 @@ jobs:
 
       - name: Fetch the pinned EMI dependency
         run: |
+          set -euo pipefail
+          verify_sha256() {
+            expected="$1"
+            file="$2"
+            actual="$(sha256sum "$file" | awk '{print $1}')"
+            if [ "$actual" != "$expected" ]; then
+              echo "SHA-256 mismatch for $file: expected $expected, got $actual" >&2
+              return 1
+            fi
+          }
           EMI_JAR="$RUNNER_TEMP/emi-1.1.24+1.21.1+neoforge.jar"
           curl --fail --location --retry 5 --retry-all-errors \
             --connect-timeout 20 --max-time 180 --output "$EMI_JAR" \
             "https://cdn.modrinth.com/data/fRiHVvU7/versions/5sIPA1To/emi-1.1.24%2B1.21.1%2Bneoforge.jar"
-          echo "b68691f94f0727fc517cac2ab55bd6658d1179cc8cc715fe610b60c37469bc4c  $EMI_JAR" \
-            | sha256sum --check --strict
+          verify_sha256 \
+            "b68691f94f0727fc517cac2ab55bd6658d1179cc8cc715fe610b60c37469bc4c" \
+            "$EMI_JAR"
           test "$(stat --format=%s "$EMI_JAR")" -eq 1111538
 
       - name: Fetch the pinned ModularUI snapshot
         run: |
+          set -euo pipefail
+          verify_sha256() {
+            expected="$1"
+            file="$2"
+            actual="$(sha256sum "$file" | awk '{print $1}')"
+            if [ "$actual" != "$expected" ]; then
+              echo "SHA-256 mismatch for $file: expected $expected, got $actual" >&2
+              return 1
+            fi
+          }
           MUI_REPO="$RUNNER_TEMP/maven-repo"
           MUI_DIR="$MUI_REPO/brachy/modularui/modularui-mc1.21.1/3.3.1-SNAPSHOT"
           MUI_BASE="https://maven.gtceu.com/brachy/modularui/modularui-mc1.21.1/3.3.1-SNAPSHOT"
@@ -58,21 +79,27 @@ jobs:
               --connect-timeout 20 --max-time 180 \
               --output "$MUI_DIR/$artifact" "$MUI_BASE/$artifact"
           done
-          echo "04a6e55b5f0e29ba137516586d3dad1c56d01ec8bc6786df9f39836490dedffc4  $MUI_DIR/maven-metadata.xml" \
-            | sha256sum --check --strict
+          verify_sha256 \
+            "04a6e55b5f0e29ba137516586d3dad1c56d01ec8bc678df9f39836490dedffc4" \
+            "$MUI_DIR/maven-metadata.xml"
           test "$(stat --format=%s "$MUI_DIR/maven-metadata.xml")" -eq 1611
-          echo "0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar" \
-            | sha256sum --check --strict
+          verify_sha256 \
+            "0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1" \
+            "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar"
           test "$(stat --format=%s "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar")" -eq 1761336
-          echo "6bad38c38437d20a43051e81747bf477b8faec1299b8388fdd68821896fd97fa  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar" \
-            | sha256sum --check --strict
+          verify_sha256 \
+            "6bad38c38437d20a43051e81747bf477b8faec1299b8388fdd68821896fd97fa" \
+            "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar"
           test "$(stat --format=%s "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar")" -eq 806832
-          echo "282644e36f0c717f52a3f0c4e7617ff927f833def555dec1480990bb4a528a9e  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.module" \
-            | sha256sum --check --strict
-          echo "803eb3fc46f2f183db879656c3ee9c8b265abb24244a42548481e0b825cc2084  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom" \
-            | sha256sum --check --strict
-          echo "2f43d8dd3052631005f98cb6283e11981fd76539c78b997125b15caf77b903b3  $MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json" \
-            | sha256sum --check --strict
+          verify_sha256 \
+            "282644e36f0c717f52a3f0c4e7617ff927f833def555dec1480990bb4a528a9e" \
+            "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.module"
+          verify_sha256 \
+            "803eb3fc46f2f183db879656c3ee9c8b265abb24244a42548481e0b825cc2084" \
+            "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom"
+          verify_sha256 \
+            "2f43d8dd3052631005f98cb6283e11981fd76539c78b997125b15caf77b903b3" \
+            "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json"
           # Keep the snapshot coordinate resolvable even if Gradle falls back
           # from timestamped metadata to the conventional snapshot filename.
           cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.jar"

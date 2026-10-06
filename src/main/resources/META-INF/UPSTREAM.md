@@ -26,7 +26,7 @@ after the base revision. The fork name, version suffix, metadata, and release
 notes must always make this distinction visible.
 
 This fork's public source repository is
-<https://github.com/Starorhope/GTCEu-ATM10-Maintenance>. The URL is exposed in
+<https://github.com/Valerm625/GregTech-Modern-Unofficial-Rebuild>. The URL is exposed in
 the fork's Gradle metadata and is the support channel for fork-specific issues.
 The upstream URL remains a provenance link, not a support channel for this
 fork. Fork-specific defects must not be filed in the upstream issue tracker

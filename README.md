@@ -1,9 +1,8 @@
-# GTCEu ATM10 Maintenance
+# 格雷科技现代版（非官方重制版）
 
-Unofficial, community-maintained GTCEu core source for Minecraft 1.21.1 and
-NeoForge. This repository preserves the `gtceu` mod id and packages the
-ATM10 maintenance changes as one core project. It does not contain separate
-addon projects.
+Unofficial, community-maintained GregTech Modern source for Minecraft 1.21.1
+and NeoForge. This project preserves the `gtceu` mod id so existing worlds and
+modpacks can recognize it.
 
 This is a recovered maintenance tree, not an official GregTech CEu release
 and not a claim that the upstream project reviewed or endorsed these changes.
@@ -15,7 +14,7 @@ the provenance records before relying on a particular implementation.
 
 - Minecraft: `1.21.1`
 - Loader: NeoForge `21.1.x` (compiled against `21.1.234`)
-- Fork version: `8.0.1-atm10.5`
+- Fork version: `8.0.1-unofficial`
 - Mod id: `gtceu`
 - Upstream baseline: [`8201bf3`](https://github.com/GregTechCEu/GregTech-Modern/commit/8201bf3847792e40b0dd75a6952e76c4c72e3cbf)
 - Recovered fork revision: `6dd4c6f490c7799620cd7e07c49c8cb368e0ddf9`

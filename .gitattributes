@@ -15,3 +15,5 @@ src/generated/resources/.cache/** text eol=lf
 
 # The pinned index is byte-verified on Linux and Windows.
 .github/dependencies/modularui-maven-metadata.xml text eol=lf
+
+.github/dependencies/*.pom text eol=lf

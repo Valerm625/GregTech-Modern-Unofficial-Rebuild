@@ -30,7 +30,9 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Test pinned snapshot provisioning
-        run: python3 tools/test_pinned_modularui.py
+        run: |
+          python3 tools/test_pinned_modularui.py
+          python3 tools/test_pinned_modrinth.py
 
       - name: Fetch the pinned EMI dependency
         run: |
@@ -113,6 +115,9 @@ jobs:
           cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.pom"
           cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT-interfaceinjection.json"
           echo "MUI_REPO=$MUI_REPO" >> "$GITHUB_ENV"
+
+      - name: Mirror pinned Iris and ModernFix artifacts
+        run: python3 tools/fetch_pinned_modrinth.py --repo "$MUI_REPO"
 
       - name: Compile and package
         run: |

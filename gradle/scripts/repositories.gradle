@@ -84,7 +84,17 @@ repositories {
         filter { includeGroup("info.journeymap") }
     }
     exclusiveContent { // Modrinth Maven
-        forRepository { maven { url = "https://api.modrinth.com/maven/" } }
+        if (recoveredMavenRepo.isPresent()) {
+            // CI mirrors the unchanged Iris/ModernFix coordinates from verified CDN
+            // artifacts. The exclusive group must include that mirror, otherwise
+            // Gradle bypasses the general recovered repository declared above.
+            forRepositories(
+                    maven { name = 'RecoveredModrinth'; url = uri(recoveredMavenRepo.get()) },
+                    maven { url = "https://api.modrinth.com/maven/" }
+            )
+        } else {
+            forRepository { maven { url = "https://api.modrinth.com/maven/" } }
+        }
         filter { includeGroup("maven.modrinth") }
     }
     exclusiveContent { // Curseforge Maven

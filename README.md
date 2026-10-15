@@ -43,6 +43,13 @@ index to the upstream latest build without auditing the dependency change.
 Run `python3 tools/test_pinned_modularui.py` to check this provisioning step
 without downloading dependencies (Python 3 and Bash are required).
 
+The same temporary repository mirrors the existing Iris and ModernFix versions
+from their pinned Modrinth CDN URLs to avoid hosted-runner artifact resolution failures
+through Modrinth Maven. `.github/dependencies/modrinth-artifacts.json` records the
+exact versions, original POM bytes, sizes and hashes; this does not upgrade or
+remove either integration. `python3 tools/test_pinned_modrinth.py` exercises
+successful provisioning and fail-closed handling of corrupt or missing files.
+
 The ordinary Gradle `test` task currently compiles the test source set and may
 discover no JUnit suites. NeoForge GameTest fixtures are separate and require
 an explicitly provisioned game-test run; a successful compile is not evidence

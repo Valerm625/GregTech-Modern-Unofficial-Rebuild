@@ -29,6 +29,11 @@ jobs:
       - name: Prepare Gradle wrapper
         run: chmod +x ./gradlew
 
+      - name: Test pinned snapshot provisioning
+        run: |
+          python3 tools/test_pinned_modularui.py
+          python3 tools/test_pinned_modrinth.py
+
       - name: Fetch the pinned EMI dependency
         run: |
           set -euo pipefail
@@ -68,8 +73,10 @@ jobs:
           MUI_TIMESTAMP="3.3.1-20260718.084355-4"
           MUI_PREFIX="modularui-mc1.21.1"
           mkdir -p "$MUI_DIR"
+          # The remote snapshot index changes whenever upstream publishes a build.
+          # Use reviewed local metadata for the exact timestamp below, never latest.
+          cp .github/dependencies/modularui-maven-metadata.xml "$MUI_DIR/maven-metadata.xml"
           for artifact in \
-            "maven-metadata.xml" \
             "$MUI_PREFIX-$MUI_TIMESTAMP.jar" \
             "$MUI_PREFIX-$MUI_TIMESTAMP-sources.jar" \
             "$MUI_PREFIX-$MUI_TIMESTAMP.module" \
@@ -80,9 +87,9 @@ jobs:
               --output "$MUI_DIR/$artifact" "$MUI_BASE/$artifact"
           done
           verify_sha256 \
-            "04a6e55b5f0e29ba137516586d3dad1c56d01ec8bc678df9f39836490dedffc4" \
+            "412099ad312bb7c70d6b03ea79772e41e016ceb8a46592bd1f320b5094590bab" \
             "$MUI_DIR/maven-metadata.xml"
-          test "$(stat --format=%s "$MUI_DIR/maven-metadata.xml")" -eq 1611
+          test "$(stat --format=%s "$MUI_DIR/maven-metadata.xml")" -eq 1400
           verify_sha256 \
             "0de8ae778722065f006028396e7a29eab19218c774774c7df51c6143bbb58eb1" \
             "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.jar"
@@ -108,6 +115,9 @@ jobs:
           cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP.pom" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT.pom"
           cp "$MUI_DIR/$MUI_PREFIX-$MUI_TIMESTAMP-interfaceinjection.json" "$MUI_DIR/$MUI_PREFIX-3.3.1-SNAPSHOT-interfaceinjection.json"
           echo "MUI_REPO=$MUI_REPO" >> "$GITHUB_ENV"
+
+      - name: Mirror pinned Iris and ModernFix artifacts
+        run: python3 tools/fetch_pinned_modrinth.py --repo "$MUI_REPO"
 
       - name: Compile and package
         run: |

@@ -34,6 +34,22 @@ On Windows, use `gradlew.bat` with the same task list. The build verifies the
 pinned EMI artifact when it is resolved; CI supplies that artifact explicitly
 and checks its size and SHA-256 before compiling.
 
+CI keeps ModularUI pinned to `3.3.1-20260718.084355-4`. Its Maven snapshot
+index is checked into `.github/dependencies/modularui-maven-metadata.xml`,
+because the remote `maven-metadata.xml` advances when upstream publishes newer
+snapshots. CI verifies the local index and all five downloaded, timestamped
+artifacts before Gradle uses the temporary Maven repository. Do not refresh the
+index to the upstream latest build without auditing the dependency change.
+Run `python3 tools/test_pinned_modularui.py` to check this provisioning step
+without downloading dependencies (Python 3 and Bash are required).
+
+The same temporary repository mirrors the existing Iris and ModernFix versions
+from their pinned Modrinth CDN URLs to avoid hosted-runner artifact resolution failures
+through Modrinth Maven. `.github/dependencies/modrinth-artifacts.json` records the
+exact versions, original POM bytes, sizes and hashes; this does not upgrade or
+remove either integration. `python3 tools/test_pinned_modrinth.py` exercises
+successful provisioning and fail-closed handling of corrupt or missing files.
+
 The ordinary Gradle `test` task currently compiles the test source set and may
 discover no JUnit suites. NeoForge GameTest fixtures are separate and require
 an explicitly provisioned game-test run; a successful compile is not evidence

@@ -92,6 +92,13 @@ public final class PatchModularUI {
     private static final String TEST_HANDLER_METHOD = "onOpenScreen";
     private static final String TEST_HANDLER_DESC = "(Lbrachy/modularui/screen/event/OpenScreenEvent;)V";
 
+    private static final String MOD_ENTRY_CLASS = "brachy/modularui/ModularUI.class";
+    private static final String CONFIG_TYPE_OWNER = "net/neoforged/fml/config/ModConfig$Type";
+    private static final String CONFIG_TYPE_NAME = "CLIENT";
+    private static final String CONFIG_TYPE_REPLACEMENT = "STARTUP";
+    private static final String REGISTER_CONFIG_DESC =
+            "(Lnet/neoforged/fml/config/ModConfig$Type;Lnet/neoforged/fml/config/IConfigSpec;Ljava/lang/String;)V";
+
     private static final Pattern MUI_JAR = Pattern.compile("^" + Pattern.quote(JARJAR_PREFIX)
             + "(modularui-mc[^/]*?)-([^/]+)\\.jar$");
     private static final Pattern TOML_VERSION = Pattern.compile("(?m)^(\\s*version\\s*=\\s*\")([^\"]*)(\")");
@@ -186,7 +193,12 @@ public final class PatchModularUI {
             return 1;
         }
         Map<String, byte[]> nested = readZip(nestedName, outer.get(nestedName));
-        problems.addAll(missingGuards(nested));
+        if (!hasConfigGuards(nested)) {
+            problems.add("ModularUI still reads its config without an isLoaded() guard");
+        }
+        if (!isConfigPromoted(nested)) {
+            problems.add("ModularUI still registers a CLIENT config instead of a STARTUP config");
+        }
         String nestedVersion = readVersion(nested);
         String metadataVersion = readMetadataVersion(outer.get(JARJAR_METADATA), nestedName);
         if (nestedVersion != null && metadataVersion != null && !nestedVersion.equals(metadataVersion)) {
@@ -227,14 +239,22 @@ public final class PatchModularUI {
                 .append(" sha256=").append(sha256(originalNestedBytes)).append('\n');
 
         Map<String, byte[]> patched = new LinkedHashMap<>(nested);
-        if (missingGuards(nested).isEmpty()) {
-            log.append("[mui-patch] guards already present, bytecode left untouched\n");
+        if (hasConfigGuards(nested)) {
+            log.append("[mui-patch] config-loaded guards already present\n");
         } else {
             patched.put(CONFIG_CLASS, guard(requireClass(nested, CONFIG_CLASS), CONFIG_METHOD, "()Z"));
             patched.put(TEST_HANDLER_CLASS,
                     guard(requireClass(nested, TEST_HANDLER_CLASS), TEST_HANDLER_METHOD, TEST_HANDLER_DESC));
             log.append("[mui-patch] inserted config-loaded guard in ").append(CONFIG_CLASS).append(" and ")
                     .append(TEST_HANDLER_CLASS).append('\n');
+        }
+        if (!isConfigPromoted(nested)) {
+            // Configs of type CLIENT are loaded only after the client already opened a screen on some
+            // NeoForge 21.1.x builds, which is exactly the ordering ModularUI cannot survive. STARTUP
+            // configs are loaded while the mod loading phase is still finishing, so every config read
+            // the client performs afterwards sees loaded values.
+            patched.put(MOD_ENTRY_CLASS, promoteConfigToStartup(requireClass(nested, MOD_ENTRY_CLASS)));
+            log.append("[mui-patch] ModularUI config type CLIENT -> STARTUP\n");
         }
 
         String newVersion = originalVersion;
@@ -262,6 +282,7 @@ public final class PatchModularUI {
                 "embeddedJar=" + newName,
                 "modularui.baseVersion=" + baseVersion,
                 "modularui.version=" + newVersion,
+                "modularui.configType=" + CONFIG_TYPE_REPLACEMENT,
                 "modularui.sourceSha256=" + sourceHash,
                 "modularui.patchedSha256=" + sha256(patchedNestedBytes),
                 "").getBytes(StandardCharsets.UTF_8);
@@ -345,11 +366,63 @@ public final class PatchModularUI {
         return null;
     }
 
-    private static List<String> missingGuards(Map<String, byte[]> nested) {
-        List<String> problems = new ArrayList<>();
-        problems.addAll(missingGuard(nested.get(CONFIG_CLASS), CONFIG_METHOD, "()Z"));
-        problems.addAll(missingGuard(nested.get(TEST_HANDLER_CLASS), TEST_HANDLER_METHOD, TEST_HANDLER_DESC));
-        return problems;
+    private static boolean hasConfigGuards(Map<String, byte[]> nested) {
+        return missingGuard(nested.get(CONFIG_CLASS), CONFIG_METHOD, "()Z").isEmpty()
+                && missingGuard(nested.get(TEST_HANDLER_CLASS), TEST_HANDLER_METHOD, TEST_HANDLER_DESC).isEmpty();
+    }
+
+    /** @return whether the ModularUI entrypoint already registers a STARTUP config. */
+    private static boolean isConfigPromoted(Map<String, byte[]> nested) {
+        byte[] classBytes = nested.get(MOD_ENTRY_CLASS);
+        if (classBytes == null) {
+            return false;
+        }
+        ClassNode classNode = new ClassNode();
+        new ClassReader(classBytes).accept(classNode, 0);
+        return configTypeAccesses(classNode).stream()
+                .allMatch(field -> CONFIG_TYPE_REPLACEMENT.equals(field.name));
+    }
+
+    /**
+     * Rewrites {@code ModConfig.Type.CLIENT} to {@code ModConfig.Type.STARTUP} in the constructor that
+     * registers ModularUI's own config, so it is loaded before the client opens its first screen.
+     */
+    private static byte[] promoteConfigToStartup(byte[] classBytes) {
+        ClassNode classNode = new ClassNode();
+        new ClassReader(classBytes).accept(classNode, 0);
+        List<FieldInsnNode> accesses = configTypeAccesses(classNode);
+        if (accesses.isEmpty()) {
+            throw new IllegalStateException("no ModConfig.Type access found in " + classNode.name);
+        }
+        for (FieldInsnNode access : accesses) {
+            access.name = CONFIG_TYPE_REPLACEMENT;
+        }
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        classNode.accept(writer);
+        return writer.toByteArray();
+    }
+
+    private static List<FieldInsnNode> configTypeAccesses(ClassNode classNode) {
+        List<FieldInsnNode> accesses = new ArrayList<>();
+        for (MethodNode method : classNode.methods) {
+            boolean registersConfig = false;
+            for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+                if (insn instanceof MethodInsnNode call && "registerConfig".equals(call.name)
+                        && REGISTER_CONFIG_DESC.equals(call.desc)) {
+                    registersConfig = true;
+                }
+            }
+            if (!registersConfig) {
+                continue;
+            }
+            for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+                if (insn instanceof FieldInsnNode field && CONFIG_TYPE_OWNER.equals(field.owner)
+                        && (CONFIG_TYPE_NAME.equals(field.name) || CONFIG_TYPE_REPLACEMENT.equals(field.name))) {
+                    accesses.add(field);
+                }
+            }
+        }
+        return accesses;
     }
 
     private static List<String> missingGuard(byte[] classBytes, String methodName, String methodDesc) {

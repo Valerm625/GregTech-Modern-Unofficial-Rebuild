@@ -44,11 +44,42 @@ Two consequences follow:
   `InventoryTypes` and `ModularUIEmiPlugin` reference those classes, so a missing class would
   surface as `NoClassDefFoundError`. The patch therefore edits bytes instead of removing code.
 
+Guarding the two handlers is necessary but **not sufficient**. With only those guards in place the
+same client fails a few lines later, still inside `Minecraft.<init>`:
+
+```text
+java.lang.IllegalStateException: Cannot get config value before config is loaded.
+    at ModConfigSpec$BooleanValue.getAsBoolean(ModConfigSpec.java:1291)
+    at brachy.modularui.ModularUIConfig$Dev.debugUI(ModularUIConfig.java:193)
+    at brachy.modularui.overlay.OverlayStack.onOpenScreen(OverlayStack.java:133)
+```
+
+That read does not come from the test package at all: `OverlayStack` is core ModularUI and reads
+`ModularUIConfig.Dev.debugUI()` whenever a screen opens. Any other early read would fail the same
+way, so the real defect is the *config type*: ModularUI registers its spec as `CLIENT`
+(`ModularUI.java:61`), and a `CLIENT` config on NeoForge 21.1.x is not loaded before the first
+screen is built. The patch therefore promotes that registration to `STARTUP`, whose load pass runs
+while the mod loading phase is still finishing.
+
 ## The patch
 
-`tools/mui-patch/src/main/java/com/gregtechceu/buildtools/muipatch/PatchModularUI.java` inserts the
-missing guard at the entry of both access paths, so the behaviour is unchanged once the spec is
-loaded (the shipped default of `enableTestOverlays` is `false` anyway):
+Three byte edits inside the embedded jar:
+
+1. `brachy/modularui/ModularUI.<init>` registers `ModConfig.Type.STARTUP` instead of
+   `ModConfig.Type.CLIENT`, so `config/modularui.toml` is loaded before the client builds a screen
+   (`Loaded TOML config file ... modularui.toml` now appears during mod loading).
+2. `brachy/modularui/ModularUIConfig.enableTestOverlays()` and
+   `brachy/modularui/test/TestHandler.onOpenScreen(...)` additionally get an explicit
+   `ModConfigSpec.isLoaded()` guard, so a future ordering change cannot resurrect the crash.
+
+```text
+ModularUI.<init>
+  57: getstatic     ModConfig$Type.CLIENT      ->  getstatic ModConfig$Type.STARTUP
+  65: invokevirtual ModContainer.registerConfig(...)
+```
+
+The guards, described below, keep the behaviour unchanged once the spec is loaded (the shipped
+default of `enableTestOverlays` is `false` anyway):
 
 ```text
 ModularUIConfig.enableTestOverlays()Z
@@ -80,7 +111,7 @@ entry of the embedded ModularUI jar stays byte-identical.
 | --- | --- |
 | `compileMuiPatchTool` | Compiles the tool with the project's Java 21 toolchain. ASM is resolved into the isolated `muiPatchTool` configuration and never reaches the mod. |
 | `patchEmbeddedModularUI` | Runs after `jar` (which packages the `jarJar` output) and rewrites that jar in place. |
-| `verifyEmbeddedModularUI` | Fails unless both guards are present and the jar-in-jar metadata matches the embedded ModularUI version. |
+| `verifyEmbeddedModularUI` | Fails unless the STARTUP registration, both guards and the jar-in-jar metadata are all in place. |
 
 `assemble` and every `AbstractPublishToMaven` task depend on `patchEmbeddedModularUI`, so a shipped
 artifact cannot silently lose the patch. CI runs `patchEmbeddedModularUI verifyEmbeddedModularUI`
@@ -100,8 +131,9 @@ patch=mui-test-overlays-config-guard
 embeddedJar=META-INF/jarjar/modularui-mc1.21.1-3.3.1-SNAPSHOT-gtpatch.jar
 modularui.baseVersion=3.3.1-SNAPSHOT
 modularui.version=3.3.1-SNAPSHOT-gtpatch
+modularui.configType=STARTUP
 modularui.sourceSha256=5eddfe0eedb04e3356438245f7b6684c15686684cabd4286c12d9e7e516dbf14
-modularui.patchedSha256=156c2832e835433bc77f329313598c385cb219deda380415672394b6a4610e7b
+modularui.patchedSha256=2d648ea8350a6b12533d2f2613e1e40db7ef9818a866d3228c1016407a101ea1
 ```
 
 The step is idempotent: re-running it on an already patched jar detects both guards, keeps the
@@ -128,10 +160,16 @@ inconsistent jar-in-jar metadata all abort the build instead of shipping a jar t
 
 ## Maintenance
 
-- **Bumping ModularUI**: nothing to do. The tool patches whatever jar `jarJar` embeds and fails if
-  the target methods disappear.
+- **Bumping ModularUI**: nothing to do. The tool patches whatever jar `jarJar` embeds; it promotes
+  the config type of the constructor that calls `registerConfig`, patches the two handlers, and
+  fails closed if any of those anchors disappear.
+- **NeoForge changes the config load order again**: the STARTUP promotion is what keeps the spec
+  loaded before the first screen. If NeoForge ever stops loading STARTUP configs during mod
+  loading, the two `isLoaded()` guards mean the client degrades to the documented defaults instead
+  of crashing, and `verifyEmbeddedModularUI` still passes.
 - **Upstream fixes the crash**: remove `apply from: ... mui-patch.gradle` from `build.gradle`,
   delete `tools/mui-patch` and `gradle/scripts/mui-patch.gradle`, and drop this document. Run
-  `verifyEmbeddedModularUI` first: if it passes on an unpatched jar, the guard is already upstream.
+  `verifyEmbeddedModularUI` first: if it passes on an unpatched jar, the fix is already upstream.
 - **Client smoke test**: `config/modularui.toml` must appear after the first client launch and the
-  log must contain `Loaded TOML config file ...modularui.toml`.
+  log must contain `Loaded TOML config file ...modularui.toml` during mod loading, not after the
+  first screen.

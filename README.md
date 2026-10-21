@@ -27,12 +27,20 @@ providers of the `gtceu` mod id at the same time.
 Use JDK 21. The build intentionally disables automatic JDK downloads.
 
 ```text
-./gradlew --no-daemon clean compileJava compileTestJava jar sourcesJar test
+./gradlew --no-daemon clean compileJava compileTestJava jar patchEmbeddedModularUI \
+    verifyEmbeddedModularUI sourcesJar test
 ```
 
 On Windows, use `gradlew.bat` with the same task list. The build verifies the
 pinned EMI artifact when it is resolved; CI supplies that artifact explicitly
 and checks its size and SHA-256 before compiling.
+
+`patchEmbeddedModularUI` post-processes the packaged jar: the embedded ModularUI
+3.3.1 ships a development test handler that reads its own config before NeoForge
+loads it, which crashes the 1.21.1 client at the title screen. `assemble` and the
+publish tasks depend on that step, and `verifyEmbeddedModularUI` fails closed if
+the guard or the jar-in-jar metadata is missing. See
+[`docs/mui-test-overlay-patch.md`](docs/mui-test-overlay-patch.md).
 
 CI keeps ModularUI pinned to `3.3.1-20260718.084355-4`. Its Maven snapshot
 index is checked into `.github/dependencies/modularui-maven-metadata.xml`,

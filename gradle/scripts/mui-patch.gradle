@@ -1,0 +1,73 @@
+// Post-processing of the packaged jar.
+//
+// ModularUI is embedded through the `jarJar` configuration, and every artifact of the 3.3.1 line
+// ships `brachy.modularui.test.TestHandler` with an unconditional `@EventBusSubscriber`. That
+// handler starts with a `ModConfigSpec` read (`ModularUIConfig.enableTestOverlays()`), which on
+// Minecraft 1.21.1 / NeoForge 21.1.x happens before `config/modularui.toml` is loaded and
+// therefore crashes the client with
+// `IllegalStateException: Cannot get config value before config is loaded.`
+//
+// `patchEmbeddedModularUI` rewrites the jar produced by `jar` (which packages the jarJar output)
+// and adds the missing guard to the embedded ModularUI. The step is idempotent, so it survives
+// repeated builds and can be re-run on an already patched artifact.
+//
+// See docs/mui-test-overlay-patch.md.
+
+def muiPatchSuffix = providers.gradleProperty('muiPatchSuffix').getOrElse('gtpatch')
+def muiPatchToolSources = fileTree("$rootDir/tools/mui-patch/src/main/java") { include '**/*.java' }
+def muiPatchToolClasses = layout.buildDirectory.dir('mui-patch/classes')
+
+configurations {
+    muiPatchTool {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    // ASM is only needed by the build-time tool, never by the mod itself.
+    muiPatchTool 'org.ow2.asm:asm:9.9.1'
+    muiPatchTool 'org.ow2.asm:asm-tree:9.9.1'
+}
+
+def compileMuiPatchTool = tasks.register('compileMuiPatchTool', JavaCompile) {
+    group = 'build tools'
+    description = 'Compiles the ModularUI post-processing tool used by patchEmbeddedModularUI.'
+    source = muiPatchToolSources
+    classpath = configurations.muiPatchTool
+    destinationDirectory.set(muiPatchToolClasses)
+    options.encoding = 'UTF-8'
+    options.release.set(21)
+    options.compilerArgs.addAll(['-proc:none', '-Xlint:-options'])
+}
+
+def packagedJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+
+def patchEmbeddedModularUI = tasks.register('patchEmbeddedModularUI', JavaExec) {
+    group = 'build'
+    description = 'Adds the config-loaded guard to the ModularUI jar embedded in the packaged jar.'
+    dependsOn tasks.named('jar'), compileMuiPatchTool
+    classpath = files(muiPatchToolClasses, configurations.muiPatchTool)
+    mainClass.set('com.gregtechceu.buildtools.muipatch.PatchModularUI')
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) })
+    doFirst {
+        args = ['patch', packagedJar.get().asFile.absolutePath, '--version-suffix', muiPatchSuffix]
+    }
+}
+
+def verifyEmbeddedModularUI = tasks.register('verifyEmbeddedModularUI', JavaExec) {
+    group = 'verification'
+    description = 'Verifies that the packaged jar ships a patched ModularUI and consistent jar-in-jar metadata.'
+    dependsOn patchEmbeddedModularUI
+    classpath = files(muiPatchToolClasses, configurations.muiPatchTool)
+    mainClass.set('com.gregtechceu.buildtools.muipatch.PatchModularUI')
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) })
+    doFirst {
+        args = ['verify', packagedJar.get().asFile.absolutePath]
+    }
+}
+
+// Shipping tasks must not hand out an unpatched jar.
+tasks.named('assemble').configure { dependsOn patchEmbeddedModularUI }
+tasks.withType(org.gradle.api.publish.maven.tasks.AbstractPublishToMaven)
+        .configureEach { dependsOn patchEmbeddedModularUI }

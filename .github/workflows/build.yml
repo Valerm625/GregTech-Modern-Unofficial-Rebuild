@@ -124,7 +124,8 @@ jobs:
           ./gradlew --no-daemon --stacktrace \
             "-Precovered_emi_jar=$RUNNER_TEMP/emi-1.1.24+1.21.1+neoforge.jar" \
             "-Precovered_maven_repo=$MUI_REPO" \
-            clean compileJava compileTestJava jar sourcesJar test
+            clean compileJava compileTestJava jar patchEmbeddedModularUI \
+            verifyEmbeddedModularUI sourcesJar test
 
       - name: Verify build outputs
         run: |
@@ -132,3 +133,11 @@ jobs:
           test -n "$(find build/classes/java/test -type f -name '*.class' -print -quit)"
           test -n "$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' -print -quit)"
           test -n "$(find build/libs -maxdepth 1 -type f -name '*-sources.jar' -print -quit)"
+          # The packaged jar must carry the ModularUI guard marker written by
+          # patchEmbeddedModularUI; verifyEmbeddedModularUI already checked the bytecode.
+          for jar in build/libs/*.jar; do
+            case "$jar" in
+              *-sources.jar) continue ;;
+            esac
+            unzip -l "$jar" | grep -q 'META-INF/mui-patch.properties'
+          done

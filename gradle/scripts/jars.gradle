@@ -1,3 +1,12 @@
+// Same ISO-8859-1 issue as resources.gradle: Gradle decodes gradle.properties with the Java
+// Properties default charset, so non-ASCII metadata has to be re-read as UTF-8 to reach the
+// manifest un-mangled.
+def jarMetadata = new Properties()
+rootProject.file('gradle.properties').withInputStream { stream ->
+    jarMetadata.load(new InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8))
+}
+def jarDisplayName = jarMetadata.getProperty('mod_name') ?: mod_name
+
 tasks.register('slimJar', Jar) {
     dependsOn("classes")
     archiveClassifier = "slim"
@@ -33,7 +42,7 @@ afterEvaluate {
         destinationDirectory = file('build/libs/')
         manifest.attributes([
                 'MixinConfigs': 'gtceu.mixins.json',
-                'Specification-Title': mod_name,
+                'Specification-Title': jarDisplayName,
                 'Specification-Version': mod_version,
                 'Specification-Vendor': 'Unofficial GregTech Modern rebuild contributors',
                 'Implementation-Title': base.archivesName,
@@ -45,7 +54,8 @@ afterEvaluate {
                 'Upstream-Project': 'https://github.com/GregTechCEu/GregTech-Modern/',
                 'Upstream-Revision': upstream_revision,
                 'Upstream-Vendor': 'GregTechCEu Team',
-                'AI-Assisted': 'OpenAI Codex; human review required before release',
+                'AI-Assisted': 'OpenAI Codex, DeepSeek Harness; human review required before release',
         ])
     }
 }
+

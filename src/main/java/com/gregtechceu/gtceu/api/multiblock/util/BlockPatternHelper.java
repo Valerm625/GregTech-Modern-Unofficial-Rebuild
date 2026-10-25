@@ -154,11 +154,11 @@ public class BlockPatternHelper extends AbstractStructureHelper {
             boolean layerMinUnmet = basePredicate.minSliceCount > 0 && layerAlreadyPopulated < basePredicate.minSliceCount;
             if (globalMinUnmet || layerMinUnmet) {
                BlockInfo toInsert = (BlockInfo)this.blockPreferences.get(predicate, basePredicate);
-               if (toInsert == null) {
+               if (toInsert == null && !basePredicate.getCandidates().isEmpty()) {
                   toInsert = basePredicate.getCandidates().get(0);
                }
 
-               if (this.isValidCandidate(resultStructure, predicate, pos, toInsert, dir)) {
+               if (toInsert != null && this.isValidCandidate(resultStructure, predicate, pos, toInsert, dir)) {
                   resultStructure.put(pos, toInsert);
                   if (this.controllerBlock == null && predicate.isController()) {
                      this.controllerBlock = toInsert.getBlockState().getBlock();
@@ -182,11 +182,11 @@ public class BlockPatternHelper extends AbstractStructureHelper {
             if ((maxCount == -1 || totalAlreadyPopulated < maxCount)
                && (basePredicate.maxSliceCount == -1 || layerAlreadyPopulated < basePredicate.maxSliceCount)) {
                BlockInfo toInsert = (BlockInfo)this.blockPreferences.get(predicate, basePredicate);
-               if (toInsert == null) {
+               if (toInsert == null && !basePredicate.getCandidates().isEmpty()) {
                   toInsert = basePredicate.getCandidates().get(0);
                }
 
-               if (this.isValidCandidate(resultStructure, predicate, pos, toInsert, dir)) {
+               if (toInsert != null && this.isValidCandidate(resultStructure, predicate, pos, toInsert, dir)) {
                   resultStructure.put(pos, toInsert);
                   if (this.controllerBlock == null && predicate.isController()) {
                      this.controllerBlock = toInsert.getBlockState().getBlock();
@@ -222,10 +222,15 @@ public class BlockPatternHelper extends AbstractStructureHelper {
    }
 
    private char[][][] flattenBlockPattern(BlockPattern pattern) {
-      int totalSlices = this.sliceRepeats.values().intStream().sum();
+      PatternSlice[] slices = pattern.getSlices();
+      // Count the repeats the same way the fill loop below resolves them, so a slice without an
+      // explicit entry still occupies its default of one slot instead of writing past the buffer.
+      int totalSlices = 0;
+      for (int sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {
+         totalSlices += Math.max(0, this.sliceRepeats.getOrDefault(sliceIndex, 1));
+      }
       int[] dimensions = pattern.getDimensions();
       char[][][] flattenedPattern = new char[totalSlices][dimensions[1]][dimensions[2]];
-      PatternSlice[] slices = pattern.getSlices();
       int totalSlicesIndex = 0;
 
       for (int sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {

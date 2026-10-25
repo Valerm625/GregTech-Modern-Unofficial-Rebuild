@@ -298,7 +298,9 @@ public class MultiblockDisplayText {
       }
 
       public MultiblockDisplayText.Builder addBatchModeLine(boolean batchEnabled, int batchAmount) {
-         if (batchEnabled && batchAmount > 0) {
+         // Match the sibling lines below and the MUI replacement in GTMultiblockTextUtil: a batch
+         // amount of one means batching is not doing anything and should not be advertised.
+         if (batchEnabled && batchAmount > 1) {
             Component runs = Component.literal(FormattingUtil.formatNumbers(batchAmount)).withStyle(ChatFormatting.DARK_PURPLE);
             String key = "gtceu.multiblock.batch_enabled";
             this.textList.add(Component.translatable(key, new Object[]{runs}).withStyle(ChatFormatting.GRAY));

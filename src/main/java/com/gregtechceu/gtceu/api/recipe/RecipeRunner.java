@@ -117,7 +117,7 @@ public class RecipeRunner {
                 List<Content> entriesToRoll = chancedContents;
                 chancedContents = new ArrayList<>();
                 List<Content> rolledContents = chancedContents;
-                forEachChanceRollBatch(recipe.parallels, recipe.batchParallels,
+                forEachChanceRollBatch(totalChanceRolls(recipe),
                         times -> rolledContents.addAll(logic.roll(cap, entriesToRoll, boostFunction,
                                 recipeTier, chanceTier, cache, times)));
 
@@ -131,14 +131,26 @@ public class RecipeRunner {
     }
 
     /**
+     * The number of complete recipe executions a single processing step represents. Guaranteed
+     * contents are multiplied by this product through {@code ContentModifier}, so chanced contents
+     * must be rolled once per execution or they fall behind by the subtick factor.
+     */
+    static long totalChanceRolls(@NotNull GTRecipe recipe) {
+        if (recipe.parallels <= 0 || recipe.subtickParallels <= 0 || recipe.batchParallels <= 0) {
+            return 0L;
+        }
+        return (long) recipe.parallels * recipe.subtickParallels * recipe.batchParallels;
+    }
+
+    /**
      * Splits the exact parallel/batch product into the {@code int} batches accepted by the public ChanceLogic API.
      * This avoids silently turning a valid large positive product negative while preserving every requested roll.
      */
-    static void forEachChanceRollBatch(int parallels, int batchParallels, IntConsumer consumer) {
+    static void forEachChanceRollBatch(long rolls, IntConsumer consumer) {
         Objects.requireNonNull(consumer, "consumer");
-        if (parallels <= 0 || batchParallels <= 0) return;
+        if (rolls <= 0) return;
 
-        long remaining = (long) parallels * batchParallels;
+        long remaining = rolls;
         while (remaining > 0) {
             int batch = (int) Math.min(remaining, Integer.MAX_VALUE);
             consumer.accept(batch);

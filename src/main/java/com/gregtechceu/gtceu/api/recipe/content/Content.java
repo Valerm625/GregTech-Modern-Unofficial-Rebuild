@@ -95,7 +95,9 @@ public record Content(Object content, int chance, int maxChance, int tierChanceB
    }
 
    public static void addChanceTooltips(RichTooltip tooltip, Content content, ChanceLogic logic) {
-      if (content.chance() < ChanceLogic.getMaxChancedValue()) {
+      // Compare against this entry's own scale: the body below formats the percentage as
+      // chance / maxChance, so the guard has to use the same denominator as isChanced() does.
+      if (content.chance() < content.maxChance()) {
          if (content.chance() == 0) {
             tooltip.addLine(Component.translatable("gtceu.gui.content.chance_nc"));
          } else {

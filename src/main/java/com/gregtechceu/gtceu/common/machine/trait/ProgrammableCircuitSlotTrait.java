@@ -15,6 +15,7 @@ import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableItemStackHan
 import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableRecipeHandlerTrait;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
+import com.gregtechceu.gtceu.api.sync_system.annotations.SyncToClient;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.item.behavior.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.common.mui.GTMuiWidgets;
@@ -26,15 +27,23 @@ import net.neoforged.neoforge.common.crafting.SizedIngredient;
 public class ProgrammableCircuitSlotTrait extends NotifiableRecipeHandlerTrait<SizedIngredient> implements IAttachConfiguratorsTrait, ICapabilityTrait {
    public static final MachineTraitType<ProgrammableCircuitSlotTrait> TYPE = new MachineTraitType<>(ProgrammableCircuitSlotTrait.class);
    @SaveField
+   @SyncToClient
    public final CustomItemStackHandler storage;
    private boolean enabled = true;
+   @SaveField
+   @SyncToClient
    private boolean controllerAllowsCircuits = true;
 
    public ProgrammableCircuitSlotTrait() {
       this.setEnabled(ConfigHolder.INSTANCE.machines.ghostCircuit);
       this.storage = new CustomItemStackHandler(1);
       this.storage.setFilter(IntCircuitBehaviour::isIntegratedCircuit);
-      this.storage.setOnContentsChanged(this::notifyListeners);
+      this.storage.setOnContentsChanged(this::onStorageContentsChanged);
+   }
+
+   private void onStorageContentsChanged() {
+      this.syncDataHolder.markClientSyncFieldDirty("storage");
+      this.notifyListeners();
    }
 
    @Override
@@ -63,6 +72,7 @@ public class ProgrammableCircuitSlotTrait extends NotifiableRecipeHandlerTrait<S
    public void addedToController(MultiblockControllerMachine controller) {
       if (!controller.allowCircuitSlots()) {
          this.controllerAllowsCircuits = false;
+         this.syncDataHolder.markClientSyncFieldDirty("controllerAllowsCircuits");
       }
    }
 
@@ -78,6 +88,7 @@ public class ProgrammableCircuitSlotTrait extends NotifiableRecipeHandlerTrait<S
       }
 
       this.controllerAllowsCircuits = allControllersAllowCircuits;
+      this.syncDataHolder.markClientSyncFieldDirty("controllerAllowsCircuits");
    }
 
    @Override

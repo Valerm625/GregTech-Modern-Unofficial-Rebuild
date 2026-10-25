@@ -289,10 +289,14 @@ public class RecipeRunner {
             if (entry.getValue() != null && !entry.getValue().isEmpty()) {
                 RecipeCapability<?> failedCap = entry.getKey();
                 if (simulated && bestLeftover != null) {
+                    // Report a capability the closest attempt was short on. The retained map can
+                    // hold several; keep the first one, matching the first-unsatisfied convention of
+                    // the loop above instead of silently taking the last entry in iteration order.
                     for (var leftoverEntry : bestLeftover.entrySet()) {
                         if (leftoverEntry.getValue() != null && !leftoverEntry.getValue().isEmpty() &&
                                 leftoverEntry.getKey() != null) {
                             failedCap = leftoverEntry.getKey();
+                            break;
                         }
                     }
                 }

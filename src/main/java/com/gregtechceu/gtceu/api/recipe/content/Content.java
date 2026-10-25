@@ -31,11 +31,15 @@ public record Content(Object content, int chance, int maxChance, int tierChanceB
       return RecordCodecBuilder.create(
          instance -> instance.group(
                   capability.serializer.codec().fieldOf("content").forGetter(val -> capability.of(val.content)),
-                  ExtraCodecs.NON_NEGATIVE_INT.optionalFieldOf("chance", ChanceLogic.getMaxChancedValue()).forGetter(val -> val.chance),
-                  ExtraCodecs.NON_NEGATIVE_INT.optionalFieldOf("maxChance", ChanceLogic.getMaxChancedValue()).forGetter(val -> val.maxChance),
-                  Codec.INT.optionalFieldOf("tierChanceBoost", 0).forGetter(val -> val.tierChanceBoost)
+                  ExtraCodecs.NON_NEGATIVE_INT.optionalFieldOf("chance", ChanceLogic.getMaxChancedValue()).forGetter(Content::chance),
+                  ExtraCodecs.NON_NEGATIVE_INT.optionalFieldOf("maxChance", ChanceLogic.getMaxChancedValue()).forGetter(Content::maxChance),
+                  // JSON carries the boost in the 1/10000 scale, while the record stores it scaled to
+                  // maxChance (see fixBoost), so the codec converts in both directions instead of
+                  // letting fromSerialized() undo the normalization on decode only.
+                  Codec.INT.optionalFieldOf("tierChanceBoost", 0)
+                        .forGetter(val -> restoreBoostInput(val.tierChanceBoost(), val.maxChance()))
                )
-               .apply(instance, Content::fromSerialized)
+               .apply(instance, Content::new)
       );
    }
 

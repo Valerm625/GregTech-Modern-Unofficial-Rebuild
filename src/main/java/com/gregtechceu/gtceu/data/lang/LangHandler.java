@@ -611,10 +611,14 @@ public class LangHandler {
 
         replace(provider, "item.gtceu.bucket", "%s Bucket");
 
-        replace(provider, "block.gtceu.oil_heavy", "Heavy Oil");
-        replace(provider, "block.gtceu.oil_light", "Light Oil");
-        replace(provider, "block.gtceu.oil_medium", "Raw Oil");
+        // The placeable fluid blocks use the material id, so these must match oil/heavy_oil/
+        // raw_oil/light_oil/natural_gas/creosote. The old oil_heavy/oil_light/oil_medium keys
+        // referred to blocks that do not exist and only produced dead translation entries.
+        replace(provider, "block.gtceu.heavy_oil", "Heavy Oil");
+        replace(provider, "block.gtceu.light_oil", "Light Oil");
+        replace(provider, "block.gtceu.raw_oil", "Raw Oil");
         replace(provider, "block.gtceu.oil", "Oil");
+        replace(provider, "block.gtceu.natural_gas", "Natural Gas");
         replace(provider, "block.gtceu.creosote", "Creosote");
 
         replace(provider, GTBlocks.BATTERY_EMPTY_TIER_I.get().getDescriptionId(), "Empty Tier I Capacitor");

@@ -67,6 +67,20 @@ public class GTRecipeSerializer implements RecipeSerializer<GTRecipe> {
     public static final Codec<Map<RecipeCapability<?>, ChanceLogic>> CHANCE_LOGIC_MAP_CODEC = Codec.
             unboundedMap(RecipeCapability.ID_CODEC, GTRegistries.CHANCE_LOGICS.byNameCodec());
 
+    /**
+     * {@code all_parallels} is consumed as a fixed three-element list
+     * ({@code parallels}, {@code subtickParallels}, {@code batchParallels}). Validate the shape in
+     * the codec: {@code Codec.INT.listOf()} alone accepts any length, and a malformed recipe would
+     * otherwise throw {@code IndexOutOfBoundsException} out of deserialization instead of returning
+     * a {@code DataResult} error.
+     */
+    public static final Codec<List<Integer>> ALL_PARALLELS_CODEC = Codec.INT.listOf().flatXmap(
+            list -> list.size() == 3 ? DataResult.success(list) : DataResult.error(
+                    () -> "all_parallels must contain exactly 3 values (parallels, subtickParallels, batchParallels), got " +
+                            list.size()),
+            list -> list.size() == 3 ? DataResult.success(list) : DataResult.error(
+                    () -> "all_parallels must contain exactly 3 values"));
+
     public static final MapCodec<GTRecipe> CODEC = makeCodec(GTCEu.Mods.isKubeJSLoaded());
     public static final StreamCodec<RegistryFriendlyByteBuf, GTRecipe> STREAM_CODEC = StreamCodec
             .of(GTRecipeSerializer::toNetwork, GTRecipeSerializer::fromNetwork);
@@ -263,7 +277,7 @@ public class GTRecipeSerializer implements RecipeSerializer<GTRecipe> {
                             RecipeCondition.CODEC.listOf().optionalFieldOf("recipeConditions", List.of()).forGetter(val -> val.conditions),
                             CompoundTag.CODEC.optionalFieldOf("data", new CompoundTag()).forGetter(val -> val.data),
                             quietExceptionCodec(ExtraCodecs.NON_NEGATIVE_INT, "duration", isKubeLoaded).forGetter(val -> val.duration),
-                            Codec.INT.listOf().optionalFieldOf("all_parallels", List.of(1, 1, 1)).forGetter(val -> Arrays.asList(val.parallels, val.subtickParallels, val.batchParallels)),
+                            ALL_PARALLELS_CODEC.optionalFieldOf("all_parallels", List.of(1, 1, 1)).forGetter(val -> Arrays.asList(val.parallels, val.subtickParallels, val.batchParallels)),
                             GTRegistries.RECIPE_CATEGORIES.byNameCodec().optionalFieldOf("category", GTRecipeCategory.DEFAULT).forGetter(val -> val.recipeCategory),
                             Codec.INT.optionalFieldOf("groupColor", -1).forGetter(val -> val.groupColor))
                     .apply(instance, GTRecipe::new));
@@ -282,7 +296,7 @@ public class GTRecipeSerializer implements RecipeSerializer<GTRecipe> {
                     IngredientActionHolder.CODEC.listOf().optionalFieldOf("kubejs:actions", List.of()).forGetter(val -> (List<IngredientActionHolder>) val.ingredientActions),
                     CompoundTag.CODEC.optionalFieldOf("data", new CompoundTag()).forGetter(val -> val.data),
                     quietExceptionCodec(ExtraCodecs.NON_NEGATIVE_INT, "duration", isKubeLoaded).forGetter(val -> val.duration),
-                    Codec.INT.listOf().optionalFieldOf("all_parallels", List.of(1, 1, 1)).forGetter(val -> Arrays.asList(val.parallels, val.subtickParallels, val.batchParallels)),
+                    ALL_PARALLELS_CODEC.optionalFieldOf("all_parallels", List.of(1, 1, 1)).forGetter(val -> Arrays.asList(val.parallels, val.subtickParallels, val.batchParallels)),
                     GTRegistries.RECIPE_CATEGORIES.byNameCodec().optionalFieldOf("category", GTRecipeCategory.DEFAULT).forGetter(val -> val.recipeCategory),
                     Codec.INT.optionalFieldOf("groupColor", -1).forGetter(val -> val.groupColor))
             .apply(instance, GTRecipe::new));

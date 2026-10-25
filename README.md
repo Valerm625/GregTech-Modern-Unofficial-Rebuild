@@ -120,7 +120,9 @@ snapshot replacement cannot silently change the build.
 ## AI-assisted recovery
 
 The recovery layer includes an AI-use disclosure in
-`src/main/resources/META-INF/AI_DISCLOSURE.md`. All changes require human
+`src/main/resources/META-INF/AI_DISCLOSURE.md`. It records both passes so far:
+the OpenAI Codex recovery layer and the DeepSeek Harness (deepseek-flash)
+defect-fix pass of 2026-10-25. All changes require human
 review before release or downstream redistribution; see [`AI_POLICY.md`](AI_POLICY.md).
 
 ## Support

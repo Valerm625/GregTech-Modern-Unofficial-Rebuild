@@ -1,14 +1,21 @@
-String getConfig(String key) {
-    return project.properties.get(key)
+// java.util.Properties, and therefore Gradle's own gradle.properties parsing, decodes ISO-8859-1.
+// Non-ASCII values such as the Chinese mod name arrive mojibake'd and used to be written into
+// neoforge.mods.toml as UTF-8 of the wrong characters ("æ ¼é·..."). Re-read the file as UTF-8 and
+// prefer those values; everything stays readable in gradle.properties.
+def utf8Config = new Properties()
+rootProject.file('gradle.properties').withInputStream { stream ->
+    utf8Config.load(new InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8))
 }
+// Script-level method bodies cannot see local variables, so resolve through a closure instead.
+def configValue = { String key -> utf8Config.getProperty(key) ?: project.properties.get(key) }
 
-def mod_id = getConfig("mod_id")
-def version = getConfig("version")
-def mod_license = getConfig("mod_license")
-def mod_name = getConfig("mod_name")
-def mod_description = getConfig("mod_description")
-def mod_url = getConfig("mod_url")
-def mod_issue_tracker = getConfig("mod_issue_tracker")
+def mod_id = configValue("mod_id")
+def version = configValue("version")
+def mod_license = configValue("mod_license")
+def mod_name = configValue("mod_name")
+def mod_description = configValue("mod_description")
+def mod_url = configValue("mod_url")
+def mod_issue_tracker = configValue("mod_issue_tracker")
 
 String suffix = System.getenv("VERSION_SUFFIX")
 String version_toml = "$version" + (suffix ? "+$suffix" : "")

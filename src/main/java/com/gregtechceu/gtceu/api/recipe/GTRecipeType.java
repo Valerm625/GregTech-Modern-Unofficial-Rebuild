@@ -275,11 +275,17 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
    }
 
    public boolean removeDataStickEntry(@NotNull String researchId, @NotNull GTRecipe recipe) {
-      Collection<GTRecipe> collection = this.researchEntries.get(researchId);
+      // Use the same map selection as addDataStickEntry: during a reload transaction both
+      // operations must act on the staging map, otherwise a staged addition cannot be removed and
+      // a removal would mutate the published map that abortStagingRecipes() expects to be intact.
+      Map<String, Collection<GTRecipe>> entries = this.stagingResearchEntries != null
+         ? this.stagingResearchEntries
+         : this.researchEntries;
+      Collection<GTRecipe> collection = entries.get(researchId);
       if (collection == null) {
          return false;
       } else if (collection.remove(recipe)) {
-         return collection.isEmpty() ? this.researchEntries.remove(researchId) != null : true;
+         return collection.isEmpty() ? entries.remove(researchId) != null : true;
       } else {
          return false;
       }

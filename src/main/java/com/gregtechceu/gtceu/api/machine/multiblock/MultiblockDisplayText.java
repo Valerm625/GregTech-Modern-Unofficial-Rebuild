@@ -298,7 +298,9 @@ public class MultiblockDisplayText {
       }
 
       public MultiblockDisplayText.Builder addBatchModeLine(boolean batchEnabled, int batchAmount) {
-         if (batchEnabled && batchAmount > 0) {
+         // Match the sibling lines below and the MUI replacement in GTMultiblockTextUtil: a batch
+         // amount of one means batching is not doing anything and should not be advertised.
+         if (batchEnabled && batchAmount > 1) {
             Component runs = Component.literal(FormattingUtil.formatNumbers(batchAmount)).withStyle(ChatFormatting.DARK_PURPLE);
             String key = "gtceu.multiblock.batch_enabled";
             this.textList.add(Component.translatable(key, new Object[]{runs}).withStyle(ChatFormatting.GRAY));
@@ -522,7 +524,9 @@ public class MultiblockDisplayText {
 
       public MultiblockDisplayText.Builder addMaintenanceProblemLines(byte maintenanceProblems) {
          if (this.isStructureFormed && ConfigHolder.INSTANCE.machines.enableMaintenance) {
-            if (maintenanceProblems <= 63 && maintenanceProblems > 0) {
+            // A set bit means the problem is fixed (MaintenanceHatchPartMachine: ALL_PROBLEMS = 0,
+            // NO_PROBLEMS = 0b111111), so 0 still has six lines to show and 63 has none.
+            if (maintenanceProblems >= 0 && maintenanceProblems < 0b111111) {
                this.addMaintenanceProblemHeader();
                if ((maintenanceProblems & 1) == 0) {
                   this.textList.add(Component.translatable("gtceu.multiblock.universal.problem.wrench").withStyle(ChatFormatting.GRAY));

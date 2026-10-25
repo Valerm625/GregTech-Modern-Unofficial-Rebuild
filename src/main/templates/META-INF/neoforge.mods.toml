@@ -11,7 +11,7 @@ authors = "KilaBash, screret, Mikerooni, serenibyss, Tech22, YoungOnion, Mikeroo
 description = "${mod_description}"
 logoFile = "icon.png"
 displayURL = "${mod_url}"
-credits = "GregoriusT, Mr_Touchyou, Zerrens for making GregTech and textures, the GT5u authors and maintainers for providing the original code, and the community."
+credits = "GregoriusT, Mr_Touchyou, Zerrens for making GregTech and textures; the GT5u authors and maintainers for providing the original code; asset credits: Gregtech: Refreshed (ULSTICK, Ghostipedia), ZedTech CEu (brachy84), TTFTCUTS, Rosethorns, GT: New Horizons, IMPACT: GREGTECH EDITION, TecTech (Technus), GregTech++, Crops++ - see META-INF/CREDITS.md; and the community."
 
 enumExtensions = "META-INF/enum_extensions.json"
 [mods."modernfix:integration"]

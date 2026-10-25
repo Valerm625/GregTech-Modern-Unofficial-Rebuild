@@ -23,7 +23,7 @@ public final class RecipeRunnerChanceRollGameTest {
     @GameTest(template = "empty_5x5")
     public static void largeParallelProductIsSplitWithoutLoss(GameTestHelper helper) {
         List<Integer> batches = new ArrayList<>();
-        RecipeRunner.forEachChanceRollBatch(50_000, 50_000, batches::add);
+        RecipeRunner.forEachChanceRollBatch(2_500_000_000L, batches::add);
 
         helper.assertTrue(batches.equals(List.of(Integer.MAX_VALUE, 352_516_353)),
                 "Chance roll product was clamped, overflowed, or split incorrectly");
@@ -32,8 +32,8 @@ public final class RecipeRunnerChanceRollGameTest {
                 "Chance roll batching did not preserve the exact parallel product");
 
         List<Integer> invalid = new ArrayList<>();
-        RecipeRunner.forEachChanceRollBatch(0, 50_000, invalid::add);
-        RecipeRunner.forEachChanceRollBatch(-1, 50_000, invalid::add);
+        RecipeRunner.forEachChanceRollBatch(0L, invalid::add);
+        RecipeRunner.forEachChanceRollBatch(-1L, invalid::add);
         helper.assertTrue(invalid.isEmpty(), "Invalid non-positive parallel counts produced chance rolls");
         helper.succeed();
     }

@@ -339,13 +339,16 @@ public class GTRecipe implements Recipe<RecipeInput> {
     // If this doesn't work, fix.
     @Override
     public boolean equals(Object obj) {
+        if (this == obj) return true;
         if (!(obj instanceof GTRecipe recipe)) return false;
-        return this.id.equals(recipe.id);
+        // Recipes that were deserialized but not yet registered have no id and are only equal to
+        // themselves; dereferencing the id here used to throw for them in RecipeDB conflict checks.
+        return this.id != null && this.id.equals(recipe.id);
     }
 
     @Override
     public int hashCode() {
-        return id.hashCode();
+        return this.id != null ? this.id.hashCode() : 0;
     }
 
     @Override

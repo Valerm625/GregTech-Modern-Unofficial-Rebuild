@@ -249,6 +249,16 @@ The upstream asset credits in `README.md` are incorporated by reference and
 must remain present in redistributed source. Inclusion in the credits does not
 imply endorsement of this fork.
 
+The same attribution list ships inside the binary and sources JARs as
+`META-INF/CREDITS.md`, so a redistributed build carries its credits with it.
+
+Redistribution of the credited textures, fonts, and recovered resources rests on
+the publisher's rights determination recorded in
+`docs/ASSET_RIGHTS_ATTESTATION.md`: those works are open source and allow
+derivative works with attribution. Each credited work keeps its own terms; if a
+rights holder disagrees with that determination, the affected asset is removed
+or replaced.
+
 ## External compatibility target not redistributed
 
 ### DS Dragonborn Lib
